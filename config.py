@@ -21,6 +21,7 @@ DEFAULTS: dict[str, Any] = {
     "order": "desc",
     "scope": "world",
     "radius": 250,
+    "event_type": "all",
     "active_location_id": None,
     "weather_view": "hourly",
     "tema": "clasico",

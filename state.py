@@ -77,6 +77,10 @@ class State:
         return self.cfg.get("scope", "world")
 
     @property
+    def event_type(self) -> str:
+        return self.cfg.get("event_type", "all")
+
+    @property
     def radius(self) -> int:
         return int(self.cfg.get("radius", 250))
 

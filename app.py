@@ -118,10 +118,11 @@ class App:
                 days=st.days,
                 sort=st.sort,
                 order=st.order,
-                scope=scope,
+                scope=st.scope,
                 lat=lat,
                 lon=lon,
                 radius=radius,
+                types=st.event_type,
             )
             st.alerts = d.get("alerts", [])
             st.alert_count = d.get("count", len(st.alerts))
@@ -206,7 +207,7 @@ class App:
         st = self.st
         if key in (curses.KEY_LEFT, ord("h")) or key in (curses.KEY_RIGHT, ord("l")):
             # mover el "cursor de filtro" entre índices de filtros
-            self.cursor = (self.cursor + (1 if key in (curses.KEY_RIGHT, ord("l")) else -1)) % 6
+            self.cursor = (self.cursor + (1 if key in (curses.KEY_RIGHT, ord("l")) else -1)) % 7
             return False
         if key in (curses.KEY_ENTER, 10, 13, ord(" ")):
             self._activate_filter(self.cursor)
@@ -235,6 +236,10 @@ class App:
             opts = ["world", "country", "zone"]
             i = opts.index(st.scope) if st.scope in opts else 0
             st.cfg["scope"] = opts[(i + 1) % len(opts)]
+        elif idx == 6:  # tipo de evento
+            opts = F.EVENT_TYPE_TYPES
+            i = opts.index(st.event_type) if st.event_type in opts else 0
+            st.cfg["event_type"] = opts[(i + 1) % len(opts)]
         self.refresh_alerts()
         self._persist()
 
@@ -482,6 +487,7 @@ class App:
                 "order": st.order,
                 "scope": st.scope,
                 "radius": st.radius,
+                "event_type": st.event_type,
                 "active_location_id": st.active_location_id,
                 "weather_view": st.weather_view,
                 "tema": st.tema,

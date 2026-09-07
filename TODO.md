@@ -21,8 +21,7 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~tests state.py~~ (omitido: E2E manual OK)
 - [ ] ~~tests app.py~~ (omitido: E2E manual OK)
 - [ ] ~~flujo "agregar ubicación" reescrito~~ (hecho en v0.18)
-- [ ] filtro por tipo de evento — nuevo toggle circular en controls
-      (?type=earthquake,fire,...), con ALL/USGS/etc., alineado con la web.
+- [ ] ~~filtro por tipo de evento~~ (hecho en v0.19)
 
 ### Media prioridad
 - [ ] limpieza código muerto — eliminar: TYPE_COLOR, wmo_desc(),
@@ -44,6 +43,17 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~tests de integración E2E~~ (omitido: E2E manual OK)
 
 ## Done
+- [x] v0.19 feat: filtro por tipo de evento — nuevo séptimo toggle circular en
+      `#controls` ([Todo▾] → [Sismos▾] → [Marejada▾] → [Tornados▾] → …) que
+      consulta `?type=<tipo>` en `/api/alerts`, alineado con la web. Tipos
+      principales (all, earthquake, tsunami, tornado, cyclone, storm, flood,
+      fire, volcano, drought, other) con etiquetas en `EVENT_TYPE_LABELS`.
+      Persistido en `config.json` (`event_type`, default "all"). Actualiza
+      `format.py` (EVENT_TYPE_TYPES/LABELS), `config.py` (DEFAULTS),
+      `state.py` (propiedad event_type), `api.py` (param types),
+      `app.py` (refresh_alerts + _activate_filter idx 6 + _persist + _key_controls %7),
+      `panels.py` (draw_controls segmento). Verificado en tmux: ciclo el toggle,
+      filtra a 3 (fire) vs 6 (todos) con tipos únicos correctos, persiste.
 - [x] v0.18 feat: flujo "agregar ubicación" reescrito — al presionar `a`/`+`
       y escribir un nombre, al confirmar con Enter se geocodifica automáticamente
       esa misma palabra y se pasa a la lista de resultados (antes dejaba el

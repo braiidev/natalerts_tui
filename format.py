@@ -43,6 +43,20 @@ SCOPE_LABELS: dict[str, str] = {
     "world": "Mundo", "country": "País", "zone": "Zona",
 }
 
+# Opciones del toggle de tipo de evento (los principales; "all" = sin filtro).
+EVENT_TYPE_TYPES: list[str] = [
+    "all",
+    "earthquake", "tsunami", "tornado", "cyclone", "storm",
+    "flood", "fire", "volcano", "drought", "other",
+]
+EVENT_TYPE_LABELS: dict[str, str] = {
+    "all": "Todo",
+    "earthquake": "Sismos", "tsunami": "Marejada", "tornado": "Tornados",
+    "cyclone": "Ciclones", "storm": "Tormentas", "flood": "Inundación",
+    "fire": "Incendios", "volcano": "Volcanes", "drought": "Sequías",
+    "other": "Otros",
+}
+
 # Íconos ASCII (códigos WMO de Open-Meteo)
 def wmo_icon(code: int | None) -> str:
     if code is None:

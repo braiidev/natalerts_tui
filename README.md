@@ -44,7 +44,7 @@ nuevo.
 ```
 [Header (h=1)  Titulo · Ubicación activa · Hora de ubicación]
 [Controls (h=1) Filtros toggle circular]
-  [Todos>] [Dias>] [Urgencia>] [Asc-Desc>] [Radio(±5)] Zona[Pais>]
+  [Todos>] [Dias>] [Urgencia>] [Asc-Desc>] [Radio(±5)] Zona[Pais>] [Tipo>]
 [Contenido (todo el H disponible)]
   [Card Alertas 50%w]           [Card Clima 50%w]
     lista truncada + scroll        ubicación actual (toggle) (+)
@@ -74,7 +74,7 @@ nuevo.
 | Raíz | `Tab` | Ciclar sección activa (Controls → Alertas → Clima → Footer) |
 | Raíz | `u` / `U` | Configuración global (URL, radio, clima, tema, actualizar) |
 | Controls | `h`/`l`, `←`/`→` | Mover el cursor de filtro |
-| Controls | `Enter` / `Space` | Activar filtro (cicla opciones: proveedor, días, orden, radio, alcance) |
+| Controls | `Enter` / `Space` | Activar filtro (cicla opciones: proveedor, días, orden, radio, alcance, tipo de evento) |
 | Alertas | `j`/`k`, `↓`/`↑` | Desplazarse por la lista |
 | Alertas | `Enter` / `Space` | Abrir detalle inline; `q`/`h`/`←`/`Esc` cierra |
 | Clima | `j`/`k` | Filas interactivas: ubicación / vista / grilla |

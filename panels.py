@@ -78,6 +78,7 @@ def draw_controls(win: Any, st: State, pairs: dict[str, int], cursor: int, focus
         f"[{'Asc ↑' if order == 'asc' else 'Desc ↓'}]",
         f"[Radio {radius} km ±5]",
         f"[{'Zona' if scope == 'zone' else F.SCOPE_LABELS.get(scope, scope) + '▾'}]",
+        f"[{F.EVENT_TYPE_LABELS.get(st.event_type, st.event_type)}▾]",
     ]
     y = 0
     x = 0

@@ -104,6 +104,7 @@ class Client:
         lat: float | None = None,
         lon: float | None = None,
         radius: int | None = None,
+        types: str | None = None,
         limit: int = 200,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {
@@ -113,6 +114,8 @@ class Client:
         }
         if source and source != "all":
             params["source"] = source
+        if types and types != "all":
+            params["type"] = types
         if days:
             params["days"] = days
         if scope:
