@@ -489,7 +489,6 @@ class App:
     # ---------- loop ----------
     def run(self) -> None:
         while True:
-            self._tick()
             self.render()
             curses.napms(100)
             key = self.scr.getch()
@@ -514,9 +513,6 @@ class App:
         self._init_windows()
         for w in (self.header, self.controls, self.separator, self.body, self.left, self.right, self.footer, self.toast_win):
             w.touchwin()
-
-    def _tick(self) -> None:
-        pass
 
     def _maybe_reload(self) -> None:
         now = time.monotonic()
