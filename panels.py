@@ -178,3 +178,161 @@ def _severity_bar(sev: int, width: int) -> str:
     width = max(1, width)
     filled = int((sev / 100) * width)
     return "#" * filled + "." * (width - filled)
+
+
+def draw_weather(win: Any, st: State, cursor: int, focus: bool) -> None:
+    h, w = win.getmaxyx()
+    if h <= 0:
+        return
+    attr_focus = curses.color_pair(C_ACTIVE if focus else C_NORMAL)
+    attr_sel = curses.color_pair(C_SELECTED)
+    head = " ▌Clima" if focus else " Clima"
+    _put(win, 0, 0, head, attr_focus | curses.A_BOLD)
+    _fill_line = lambda y: _put(win, y, 0, " " * w, curses.color_pair(C_NORMAL))
+
+    wd = st.weather
+    if st.error_weather:
+        _put(win, 1, 1, f"Error: {st.error_weather}", curses.color_pair(C_TOAST))
+        return
+    if not wd:
+        _put(win, 1, 1, "Cargando clima...", curses.color_pair(C_NORMAL))
+        return
+
+    loc = st.active_location()
+    loc_name = loc["name"] if loc else (st.config.get("zone", {}).get("name") or "Zona")
+    temp = wd.get("temperature_c")
+    desc = wd.get("weather_description") or "—"
+    wind = wd.get("windspeed_kmh")
+    wind_txt = f"Viento {wind} km/h" if wind is not None else ""
+    if wd.get("winddirection") is not None:
+        wind_txt += f" · {wd['winddirection']}°"
+    tz = (wd.get("timezone") or "Open-Meteo").split("/")[-1]
+    updated = F.time_ago(wd.get("fetched_at"))
+    icon = F.wmo_icon(wd.get("weathercode"))
+
+    y = 1
+    _put(win, y, 2, f"{loc_name}", curses.color_pair(C_ACTIVE) | curses.A_BOLD); y += 1
+    _put(win, y, 2, f"{icon} {temp}°C" if temp is not None else " —°C", curses.color_pair(C_NORMAL) | curses.A_BOLD); y += 1
+    _put(win, y, 2, f"{desc}  {wind_txt}", curses.color_pair(C_NORMAL)); y += 1
+    _put(win, y, 2, f"{tz} · actualizado {updated}", curses.color_pair(C_NORMAL)); y += 2
+
+    # Toggle ubicación (+)
+    _put(win, y, 2, " ▲/▼ ubicación  [+] añadir", curses.color_pair(C_ACTIVE if focus else C_NORMAL)); y += 2
+
+    # Toggle horario/semanal
+    view_txt = " [horario]" if st.weather_view == "hourly" else " [semanal]"
+    _put(win, y, 2, " Ver:" + view_txt, curses.color_pair(C_ACTIVE if focus else C_NORMAL)); y += 1
+
+    if st.weather_view == "hourly":
+        y = _draw_hour_grid(win, st, cursor, focus, y, w)
+    else:
+        y = _draw_daily_grid(win, st, cursor, focus, y, w)
+
+
+def _draw_hour_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: int) -> int:
+    hourly = (st.weather or {}).get("hourly") or {}
+    times = hourly.get("time") or []
+    if not times:
+        _put(win, y0, 2, "Sin proyección horaria", curses.color_pair(C_NORMAL))
+        return y0 + 1
+    # construir celdas hora
+    cells = []
+    for i, t in enumerate(times):
+        cells.append({
+            "t": t,
+            "temp": _arr(hourly, "temperature_2m", i),
+            "code": _arr(hourly, "weathercode", i),
+            "wind": _arr(hourly, "wind_speed_10m", i),
+            "gust": _arr(hourly, "windgusts_10m", i),
+            "precip": _arr(hourly, "precipitation", i),
+            "pop": _arr(hourly, "precipitation_probability", i),
+            "hum": _arr(hourly, "relativehumidity_2m", i),
+            "feels": _arr(hourly, "apparent_temperature", i),
+            "cloud": _arr(hourly, "cloudcover", i),
+            "press": _arr(hourly, "pressure_msl", i),
+        })
+    _put(win, y0, 2, " Proyección: +1 +2 +3 horas  (◀ ▶ o h/l)", curses.color_pair(C_NORMAL)); y0 += 1
+    WINDOW = 3  # +1,+2,+3
+    n = len(cells)
+    start = max(0, min(st.hour_window, max(0, n - WINDOW)))
+    slot = cells[start : start + WINDOW]
+    col_w = max(12, (w - 6) // len(slot)) if slot else 12
+    for i, cell in enumerate(slot):
+        x = 2 + i * (col_w + 1)
+        sel = focus and cursor == i
+        attr = curses.color_pair(C_SELECTED if sel else C_NORMAL)
+        if sel:
+            _put(win, y0, x - 1, "▶", attr | curses.A_BOLD)
+        hh = F.fmt_clock(cell["t"])
+        tmp = f"{int(cell['temp'])}°" if cell["temp"] is not None else ""
+        wnd = f"{int(cell['wind'])}k" if cell["wind"] is not None else ""
+        ic = F.wmo_icon(cell["code"])
+        lines = [hh, f"{ic} {tmp}", wnd]
+        for li, txt in enumerate(lines):
+            _put(win, y0 + li, x, F.truncate(txt, col_w), attr)
+    return y0 + 3
+
+
+def _draw_daily_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: int) -> int:
+    daily = (st.weather or {}).get("daily") or {}
+    times = daily.get("time") or []
+    if not times:
+        _put(win, y0, 2, "Sin proyección semanal", curses.color_pair(C_NORMAL))
+        return y0 + 1
+    cells = []
+    for i, t in enumerate(times):
+        cells.append({
+            "t": t,
+            "code": _arr(daily, "weathercode", i),
+            "tmax": _arr(daily, "temperature_2m_max", i),
+            "tmin": _arr(daily, "temperature_2m_min", i),
+            "precip": _arr(daily, "precipitation_sum", i),
+            "sunrise": _arr(daily, "sunrise", i),
+            "sunset": _arr(daily, "sunset", i),
+            "uv": _arr(daily, "uv_index_max", i),
+            "windMax": _arr(daily, "wind_speed_10m_max", i),
+        })
+    _put(win, y0, 2, f" Proyección: +1 +2 +3 días  (◀ ▶ o h/l, hasta 16d)", curses.color_pair(C_NORMAL)); y0 += 1
+    WINDOW = 3
+    n = len(cells)
+    start = max(0, min(st.daily_window, max(0, n - WINDOW)))
+    slot = cells[start : start + WINDOW]
+    col_w = max(14, (w - 6) // len(slot)) if slot else 14
+    for i, cell in enumerate(slot):
+        x = 2 + i * (col_w + 1)
+        sel = focus and cursor == i
+        attr = curses.color_pair(C_SELECTED if sel else C_NORMAL)
+        if sel:
+            _put(win, y0, x - 1, "▶", attr | curses.A_BOLD)
+        name = "Hoy" if i == 0 and start == 0 else F.fmt_day(cell["t"])
+        ic = F.wmo_icon(cell["code"])
+        tmax = f"{int(cell['tmax'])}°" if cell["tmax"] is not None else ""
+        tmin = f"{int(cell['tmin'])}°" if cell["tmin"] is not None else ""
+        ppt = f" {cell['precip']}mm" if cell["precip"] else ""
+        lines = [name, f"{ic}", f"max {tmax}  min {tmin}{ppt}"]
+        for li, txt in enumerate(lines):
+            _put(win, y0 + li, x, F.truncate(txt, col_w), attr)
+    return y0 + 3
+
+
+def _arr(data: dict[str, Any], key: str, i: int) -> Any:
+    arr = data.get(key)
+    if isinstance(arr, list) and i < len(arr):
+        return arr[i]
+    return None
+
+
+def draw_toast(st: State, win: Any) -> None:
+    if not st.toast:
+        return
+    h, w = win.getmaxyx()
+    msg = F.truncate(st.toast, w - 6)
+    box_w = len(msg) + 4
+    y = h - 3
+    x = max(0, (w - box_w) // 2)
+    attr = curses.color_pair(C_TOAST) | curses.A_BOLD
+    try:
+        win.addstr(y, x, " " * box_w, attr)
+        win.addstr(y, x, " " + msg + " ", attr)
+    except curses.error:
+        pass

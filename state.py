@@ -19,9 +19,14 @@ class State:
         self.alert_count = 0
         self.error_alerts: str | None = None
 
-        # Ubicaciones (para alcance por zona)
+        # Clima
+        self.weather: dict[str, Any] | None = None
+        self.error_weather: str | None = None
         self.locations: list[dict[str, Any]] = []
         self.active_location_id: int | None = cfg.get("active_location_id")
+        self.weather_view = cfg.get("weather_view", "hourly")
+        self.hour_window = 0
+        self.daily_window = 0
 
         # Fuentes / config
         self.config: dict[str, Any] = {}

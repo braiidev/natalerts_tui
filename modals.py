@@ -83,3 +83,295 @@ def alert_detail(scr: Any, a: dict[str, Any]) -> None:
         win.erase()
         win.touchwin()
         win.refresh()
+
+
+def weather_detail(scr: Any, title: str, lines: list[tuple[str, str]]) -> None:
+    """Modal de detalle de una celda de clima (horaria o diaria)."""
+    h, w = scr.getmaxyx()
+    box_h = min(h - 2, len(lines) + 4)
+    box_w = min(w - 4, max(36, max((len(l[0] + l[1]) + 6) for l in lines) + 4))
+    by = max(0, (h - box_h) // 2)
+    bx = max(0, (w - box_w) // 2)
+    win = _box(scr, by, bx, box_h, box_w, f" {title} ")
+
+    def draw(_: Any) -> None:
+        for i, (label, val) in enumerate(lines[: box_h - 4]):
+            try:
+                win.addstr(i + 1, 2, F.truncate(f"{label}: {val}", box_w - 4))
+            except curses.error:
+                pass
+        try:
+            win.addstr(box_h - 2, 2, " q / h / ← volver", curses.A_DIM)
+        except curses.error:
+            pass
+        win.touchwin()
+        win.refresh()
+
+    try:
+        while True:
+            scr.refresh()
+            draw(scr)
+            key = scr.getch()
+            if key in (ord("q"), ord("h"), curses.KEY_LEFT, 27):
+                return None
+    finally:
+        win.erase()
+        win.touchwin()
+        win.refresh()
+
+
+def _prompt(scr: Any, title: str, initial: str = "") -> str | None:
+    """Prompt de una línea con el texto que se tipea."""
+    h, w = scr.getmaxyx()
+    box_w = min(w - 6, 60)
+    box_h = 5
+    by = max(0, (h - box_h) // 2)
+    bx = max(0, (w - box_w) // 2)
+    win = _box(scr, by, bx, box_h, box_w, f" {title} ")
+    prefilled = bool(initial)
+    buf = list(initial)
+    cleared = False
+
+    def draw() -> None:
+        cur = "".join(buf)
+        try:
+            win.addstr(1, 2, " " * (box_w - 4), curses.A_NORMAL)
+            win.addstr(1, 2, F.truncate(cur, box_w - 4), curses.A_NORMAL)
+            win.move(1, 2 + min(len(cur), box_w - 5))
+            win.addstr(2, 2, " Enter=confirmar  Esc=cancelar", curses.A_DIM)
+        except curses.error:
+            pass
+        win.touchwin()
+        win.refresh()
+
+    while True:
+        scr.refresh()
+        draw()
+        key = scr.getch()
+        if key == curses.KEY_ENTER or key == 10 or key == 13:
+            win.erase()
+            return "".join(buf)
+        if key == 27:  # esc
+            win.erase()
+            return None
+        if key == curses.KEY_BACKSPACE or key == 127:
+            if buf:
+                buf.pop()
+        elif key == curses.KEY_LEFT:
+            pass
+        elif 32 <= key <= 126:
+            # El primer carácter de una edición prellenada reemplaza el valor
+            # (para no escribir encima; como una barra de URL).
+            if prefilled and not cleared:
+                buf = []
+                cleared = True
+            buf.append(chr(key))
+
+
+def _confirm(scr: Any, title: str, message: str) -> bool:
+    h, w = scr.getmaxyx()
+    box_w = min(w - 6, 60)
+    box_h = 6
+    by = max(0, (h - box_h) // 2)
+    bx = max(0, (w - box_w) // 2)
+    win = _box(scr, by, bx, box_h, box_w, f" {title} ")
+    sel = 0
+    options = ["  Sí  ", "  No  "]
+
+    def draw() -> None:
+        try:
+            win.addstr(1, 2, " " * (box_w - 4))
+            win.addstr(1, 2, F.truncate(message, box_w - 4))
+        except curses.error:
+            pass
+        x = 4
+        for i, opt in enumerate(options):
+            attr = curses.A_REVERSE if i == sel else curses.A_NORMAL
+            try:
+                win.addstr(4, x, opt, attr)
+            except curses.error:
+                pass
+            x += len(opt) + 6
+        win.touchwin()
+        win.refresh()
+
+    while True:
+        scr.refresh()
+        draw()
+        key = scr.getch()
+        if key in (curses.KEY_LEFT,):
+            sel = 0
+        elif key in (curses.KEY_RIGHT,):
+            sel = 1
+        elif key in (curses.KEY_ENTER, 10, 13):
+            win.erase()
+            return sel == 0
+        elif key in (ord("q"), 27):
+            win.erase()
+            return False
+
+
+def manage_locations(scr: Any, st: State, api: Any) -> Any:
+    """Modal para administrar ubicaciones: listar, añadir, usar, borrar, buscar."""
+    h, w = scr.getmaxyx()
+    box_w = min(w - 6, 64)
+    box_h = min(h - 4, max(14, len(st.locations) + 8))
+    by = max(0, (h - box_h) // 2)
+    bx = max(0, (w - box_w) // 2)
+    win = _box(scr, by, bx, box_h, box_w, " Ubicaciones ")
+    cursor = 0
+    mode = "list"  # list | add | search
+    buf = ""
+    results: list[dict[str, Any]] = []
+    hints = []
+
+    def refresh_list() -> None:
+        nonlocal cursor
+        cursor = 0
+
+    def draw() -> None:
+        for yy in range(1, box_h - 1):
+            try:
+                win.addstr(yy, 2, " " * (box_w - 4), curses.A_NORMAL)
+            except curses.error:
+                pass
+        if mode == "list":
+            lis = st.locations
+            if not lis:
+                try:
+                    win.addstr(2, 2, "Sin ubicaciones. (+) para añadir.", curses.A_DIM)
+                except curses.error:
+                    pass
+            else:
+                for i, loc in enumerate(lis[: box_h - 7]):
+                    sel = i == cursor
+                    active = st.active_location_id == loc.get("id")
+                    mark = "*" if loc.get("is_default") else " "
+                    flag = "▸" if active else " "
+                    name = loc["name"]
+                    line = f" {flag} {mark} {name}  ({loc.get('lat')}, {loc.get('lon')}) {loc.get('radius_km')}km"
+                    attr = curses.A_REVERSE if sel else curses.A_NORMAL
+                    try:
+                        win.addstr(i + 2, 2, F.truncate(line, box_w - 4), attr)
+                    except curses.error:
+                        pass
+            hints = ["↑↓ navegar", "Enter usar", "a añadir", "s buscar", "P principal", "d borrar", "q cerrar"]
+        elif mode == "add":
+            try:
+                win.addstr(2, 2, "Nombre: " + F.truncate(buf, box_w - 14) + "_")
+            except curses.error:
+                pass
+        elif mode == "search":
+            try:
+                win.addstr(2, 2, "Buscar:  " + F.truncate(buf, box_w - 14) + "_")
+            except curses.error:
+                pass
+            for i, r in enumerate(results[: box_h - 7]):
+                line = f" {i+1}. {r.get('label')}"
+                try:
+                    win.addstr(i + 3, 2, F.truncate(line, box_w - 4))
+                except curses.error:
+                    pass
+        hx = 0
+        for it in hints:
+            try:
+                win.addstr(box_h - 2, hx, it, curses.A_DIM)
+            except curses.error:
+                pass
+            hx += len(it) + 2
+        win.touchwin()
+        win.refresh()
+
+    while True:
+        scr.refresh()
+        draw()
+        key = scr.getch()
+        if mode == "list":
+            if key in (curses.KEY_UP, ord("k")) and cursor > 0:
+                cursor -= 1
+            elif key in (curses.KEY_DOWN, ord("j")) and cursor < len(st.locations) - 1:
+                cursor += 1
+            elif key in (curses.KEY_ENTER, 10, 13) and st.locations:
+                loc = st.locations[cursor]
+                st.active_location_id = loc.get("id")
+                st.cfg["active_location_id"] = loc.get("id")
+                return loc.get("id")
+            elif key in (ord("a"), ord("+")):
+                mode = "add"
+                buf = ""
+                hints = ["escribir nombre, Enter confirmar, Esc cancelar"]
+            elif key in (ord("s"), ord("/")):
+                mode = "search"
+                buf = ""
+                results = []
+                hints = ["escribir búsqueda, Enter listar, Esc cancelar"]
+            elif key in (ord("p"), ord("P")) and st.locations:
+                loc = st.locations[cursor]
+                try:
+                    api.set_default_location(loc["id"])
+                    st.locations = api.locations()
+                except Exception as e:
+                    st.toast = str(e)
+                refresh_list()
+            elif key in (ord("d"), ord("D")) and st.locations:
+                loc = st.locations[cursor]
+                if len(st.locations) > 1 and not loc.get("is_default"):
+                    if _confirm(scr, "Eliminar", f"¿Eliminar {loc['name']}?"):
+                        try:
+                            api.delete_location(loc["id"])
+                            st.locations = api.locations()
+                        except Exception as e:
+                            st.toast = str(e)
+                        refresh_list()
+            elif key in (ord("q"), 27, curses.KEY_LEFT):
+                return None
+        elif mode == "add":
+            if key in (curses.KEY_ENTER, 10, 13):
+                name = buf.strip()
+                if name:
+                    # añade con la ubicación activa o zona actual como lat/lon (luego se busca)
+                    st.toast = "Buscando coordenadas... usa 's' para geocodificar"
+                    mode = "list"
+                    # mantener simple: los guardamos tras búsqueda
+                    st._pending_name = name
+                buf = ""
+                mode = "list"
+                hints = []
+            elif key == 27:
+                mode = "list"
+                buf = ""
+            elif key in (curses.KEY_BACKSPACE, 127):
+                buf = buf[:-1]
+            elif 32 <= key <= 126:
+                buf += chr(key)
+        elif mode == "search":
+            if key in (curses.KEY_ENTER, 10, 13):
+                if buf.strip():
+                    try:
+                        results = api.geocode(buf.strip(), 6)
+                    except Exception as e:
+                        st.toast = str(e)
+                        results = []
+                else:
+                    results = []
+            elif key == 27:
+                mode = "list"
+                buf = ""
+            elif key in (ord("1"), ord("2"), ord("3"), ord("4"), ord("5"), ord("6")) and results:
+                idx = key - ord("1")
+                if idx < len(results):
+                    r = results[idx]
+                    name = getattr(st, "_pending_name", None) or (r.get("label") or r.get("name"))
+                    try:
+                        api.create_location(name, r["lat"], r["lon"], st.radius)
+                        st.locations = api.locations()
+                        st.toast = f"Ubicación añadida: {name}"
+                    except Exception as e:
+                        st.toast = str(e)
+                    mode = "list"
+                    buf = ""
+                    results = []
+            elif key in (curses.KEY_BACKSPACE, 127):
+                buf = buf[:-1]
+            elif 32 <= key <= 126:
+                buf += chr(key)

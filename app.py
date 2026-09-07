@@ -13,7 +13,7 @@ from .api import ApiError, Client
 from .state import State
 
 # Secciones navegables con <tab>
-SECTIONS = ["controls", "alerts"]
+SECTIONS = ["controls", "alerts", "weather"]
 
 
 class App:
@@ -32,6 +32,7 @@ class App:
         self.refresh_config()
         self.refresh_locations()
         self.refresh_alerts()
+        self.refresh_weather()
 
     # ---------- setup ----------
     def _init_colors(self) -> None:
@@ -117,6 +118,19 @@ class App:
         except ApiError as e:
             st.error_alerts = str(e)
 
+    def refresh_weather(self, *_a: Any) -> None:
+        st = self.st
+        try:
+            loc = st.active_location()
+            if loc:
+                w = self._client().weather(loc["lat"], loc["lon"])
+            else:
+                w = self._client().weather()
+            st.weather = w
+            st.error_weather = None
+        except ApiError as e:
+            st.error_weather = str(e)
+
     def refresh_config(self, *_a: Any) -> None:
         st = self.st
         try:
@@ -155,6 +169,8 @@ class App:
             return self._key_controls(key)
         if self.section == "alerts":
             return self._key_alerts(key)
+        if self.section == "weather":
+            return self._key_weather(key)
         return False
 
     # ---------- controles ----------
@@ -221,6 +237,130 @@ class App:
                 self.detail_open = True
         return False
 
+    # ---------- clima ----------
+    def _key_weather(self, key: int) -> bool:
+        st = self.st
+        # En clima, cursor opera sobre la grilla (0..2) o sobre toggle ubicación
+        if key in (curses.KEY_LEFT, ord("h")):
+            if st.weather_view == "hourly":
+                st.hour_window = max(0, st.hour_window - 1)
+            else:
+                st.daily_window = max(0, st.daily_window - 1)
+        elif key in (curses.KEY_RIGHT, ord("l")):
+            if st.weather_view == "hourly":
+                st.hour_window += 1
+            else:
+                st.daily_window += 1
+        elif key in (curses.KEY_DOWN, ord("j")):
+            self.cursor = min(2, self.cursor + 1)
+        elif key in (curses.KEY_UP, ord("k")):
+            self.cursor = max(0, self.cursor - 1)
+        elif key in (curses.KEY_ENTER, 10, 13, ord(" ")):
+            if self.cursor == 2:
+                # toggle horario/semanal
+                st.cfg["weather_view"] = "daily" if st.weather_view == "hourly" else "hourly"
+                st.weather_view = st.cfg["weather_view"]
+                self._persist()
+            elif self.cursor == 1:
+                # abrir modal de ubicaciones
+                modals.manage_locations(self.scr, st, self._client())
+                self._persist()
+                self.refresh_locations()
+                self.refresh_weather()
+            elif self.cursor == 0:
+                # toggle entre ubicaciones
+                if st.locations:
+                    locs = st.locations
+                    cur = st.active_location()
+                    idx = 0
+                    for i, l in enumerate(locs):
+                        if cur and l.get("id") == cur.get("id"):
+                            idx = i
+                            break
+                    nxt = locs[(idx + 1) % len(locs)]
+                    st.active_location_id = nxt.get("id")
+                    st.cfg["active_location_id"] = nxt.get("id")
+                    self._persist()
+                    self.refresh_weather()
+            else:
+                self._open_weather_cell()
+        elif key == ord("+"):
+            modals.manage_locations(self.scr, st, self._client())
+            self._persist()
+            self.refresh_locations()
+        return False
+
+    def _open_weather_cell(self) -> None:
+        st = self.st
+        w = st.weather or {}
+        if st.weather_view == "hourly":
+            hourly = w.get("hourly") or {}
+            times = hourly.get("time") or []
+            if not times:
+                return
+            n = len(times)
+            WINDOW = 3
+            start = max(0, min(st.hour_window, max(0, n - WINDOW)))
+            i = start + self.cursor
+            cell = {
+                "t": times[i] if i < len(times) else None,
+                "temp": _arr(hourly, "temperature_2m", i),
+                "code": _arr(hourly, "weathercode", i),
+                "wind": _arr(hourly, "wind_speed_10m", i),
+                "gust": _arr(hourly, "windgusts_10m", i),
+                "precip": _arr(hourly, "precipitation", i),
+                "pop": _arr(hourly, "precipitation_probability", i),
+                "hum": _arr(hourly, "relativehumidity_2m", i),
+                "feels": _arr(hourly, "apparent_temperature", i),
+                "cloud": _arr(hourly, "cloudcover", i),
+                "press": _arr(hourly, "pressure_msl", i),
+            }
+            lines = [
+                ("Hora", F.fmt_clock(cell["t"])),
+                ("Temp", f"{cell['temp']}°C" if cell["temp"] is not None else "—"),
+                ("Sensación", f"{cell['feels']}°C" if cell["feels"] is not None else "—"),
+                ("Viento", f"{cell['wind']} km/h" if cell["wind"] is not None else "—"),
+                ("Ráfagas", f"{cell['gust']} km/h" if cell["gust"] is not None else "—"),
+                ("Precip", f"{cell['precip']} mm" if cell["precip"] is not None else "—"),
+                ("Prob. lluvia", f"{cell['pop']}%" if cell["pop"] is not None else "—"),
+                ("Humedad", f"{cell['hum']}%" if cell["hum"] is not None else "—"),
+                ("Nubosidad", f"{cell['cloud']}%" if cell["cloud"] is not None else "—"),
+                ("Presión", f"{cell['press']} hPa" if cell["press"] is not None else "—"),
+            ]
+            modals.weather_detail(self.scr, f"Horas {F.fmt_clock(cell['t'])}", lines)
+        else:
+            daily = w.get("daily") or {}
+            times = daily.get("time") or []
+            if not times:
+                return
+            n = len(times)
+            WINDOW = 3
+            start = max(0, min(st.daily_window, max(0, n - WINDOW)))
+            i = start + self.cursor
+            cell = {
+                "t": times[i] if i < len(times) else None,
+                "code": _arr(daily, "weathercode", i),
+                "tmax": _arr(daily, "temperature_2m_max", i),
+                "tmin": _arr(daily, "temperature_2m_min", i),
+                "precip": _arr(daily, "precipitation_sum", i),
+                "sunrise": _arr(daily, "sunrise", i),
+                "sunset": _arr(daily, "sunset", i),
+                "uv": _arr(daily, "uv_index_max", i),
+                "windMax": _arr(daily, "wind_speed_10m_max", i),
+            }
+            name = "Hoy" if i == 0 else F.fmt_day(cell["t"])
+            lines = [
+                ("Día", name),
+                ("Máx", f"{cell['tmax']}°C" if cell["tmax"] is not None else "—"),
+                ("Mín", f"{cell['tmin']}°C" if cell["tmin"] is not None else "—"),
+                ("Lluvia", f"{cell['precip']} mm" if cell["precip"] is not None else "—"),
+                ("Amanecer", F.fmt_clock(cell["sunrise"] + "Z") if cell["sunrise"] else "—"),
+                ("Atardecer", F.fmt_clock(cell["sunset"] + "Z") if cell["sunset"] else "—"),
+                ("UV máx", f"{cell['uv']}" if cell["uv"] is not None else "—"),
+                ("Viento máx", f"{cell['windMax']} km/h" if cell["windMax"] is not None else "—"),
+            ]
+            modals.weather_detail(self.scr, f"Día {name}", lines)
+
     def _persist(self) -> None:
         from . import config as C
         st = self.st
@@ -234,6 +374,7 @@ class App:
                 "scope": st.scope,
                 "radius": st.radius,
                 "active_location_id": st.active_location_id,
+                "weather_view": st.weather_view,
             }
         )
 
@@ -260,8 +401,16 @@ class App:
             P.draw_alerts_detail(self.left, st, self.detail_alert)
         else:
             P.draw_alerts_list(self.left, st, self.cursor, focus("alerts"))
+        P.draw_weather(self.right, st, self.cursor, focus("weather"))
         self.header.refresh()
         self.controls.refresh()
         self.body.refresh()
         self.left.refresh()
+        self.right.refresh()
         self.scr.refresh()
+
+def _arr(data: dict[str, Any], key: str, i: int) -> Any:
+    arr = data.get(key)
+    if isinstance(arr, list) and i < len(arr):
+        return arr[i]
+    return None
