@@ -91,6 +91,31 @@ def draw_controls(win: Any, st: State, pairs: dict[str, int], cursor: int, focus
             break
 
 
+def _alert_parts(a: dict[str, Any]) -> tuple[str, str, str]:
+    """Partes de la línea de alerta: (pre, sev_txt, suf) para colorear la severidad."""
+    typ = F.TYPE_LABELS.get(a.get("type"), a.get("type") or "?")
+    mag = F.mag_label(a)
+    mag_txt = f" {mag}" if mag else ""
+    place = a.get("place") or a.get("title") or ""
+    sev = int(max(0, min(100, a.get("severity") or 0)))
+    dist = f" {int(a.get('distance_km'))} km" if a.get("distance_km") is not None else ""
+    src = F.SOURCE_LABELS.get(a.get("source"), a.get("source") or "")
+    rel = F.time_ago(a.get("time"))
+    pre = f"{typ:<11} {mag_txt:<6} {place} · {rel} · "
+    sev_txt = f"{sev}/100"
+    suf = f"{dist} · {src}"
+    return pre, sev_txt, suf
+
+
+def _severity_attr(pairs: dict[str, int], sev: int) -> int:
+    """Color de severidad por umbral: <33 baja, <66 media, >=66 alta."""
+    if sev >= 66:
+        return pairs["sev_high"]
+    if sev >= 33:
+        return pairs["sev_med"]
+    return pairs["sev_low"]
+
+
 def draw_alerts_list(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str, int]) -> None:
     h, w = win.getmaxyx()
     if h <= 0:
@@ -124,23 +149,20 @@ def draw_alerts_list(win: Any, st: State, cursor: int, focus: bool, pairs: dict[
         y = i - top + 2
         a = st.alerts[i]
         selected = i == cursor and focus
-        row = _alert_line(a)
+        pre, sev_txt, suf = _alert_parts(a)
         attr = pairs["selected"] if selected else pairs["text"]
+        sev_attr = _severity_attr(pairs, int(a.get("severity") or 0))
         if selected:
+            attr = pairs["selected"]
+            sev_attr = pairs["selected"]
             _put(win, y, 0, "▶", pairs["accent"] | curses.A_BOLD)
-        _put(win, y, 2, F.truncate(row, w - 3), attr)
-
-
-def _alert_line(a: dict[str, Any]) -> str:
-    typ = F.TYPE_LABELS.get(a.get("type"), a.get("type") or "?")
-    mag = F.mag_label(a)
-    mag_txt = f" {mag}" if mag else ""
-    place = a.get("place") or a.get("title") or ""
-    sev = int(max(0, min(100, a.get("severity") or 0)))
-    dist = f" {int(a.get('distance_km'))} km" if a.get("distance_km") is not None else ""
-    src = F.SOURCE_LABELS.get(a.get("source"), a.get("source") or "")
-    rel = F.time_ago(a.get("time"))
-    return f"{typ:<11} {mag_txt:<6} {place} · {rel} · {sev}/100{dist} · {src}"
+        _put(win, y, 2, F.truncate(pre, max(0, w - 3)), attr)
+        x_sev = 2 + len(pre)
+        if x_sev < w - 3:
+            _put(win, y, x_sev, F.truncate(sev_txt, max(0, w - 3 - x_sev)), sev_attr)
+        x_suf = x_sev + len(sev_txt)
+        if x_suf < w - 3:
+            _put(win, y, x_suf, F.truncate(suf, max(0, w - 3 - x_suf)), attr)
 
 
 def draw_alerts_detail(win: Any, st: State, a: dict[str, Any] | None, pairs: dict[str, int]) -> None:
@@ -162,7 +184,7 @@ def draw_alerts_detail(win: Any, st: State, a: dict[str, Any] | None, pairs: dic
     _put(win, y, 2, f"Lugar:    {a.get('place') or a.get('title') or '—'}", pairs["text"]); y += 1
     _put(win, y, 2, f"Hora:     {F.fmt_datetime(a.get('time'))} ({F.time_ago(a.get('time'))})", pairs["text"]); y += 1
     sev = int(max(0, min(100, a.get("severity") or 0)))
-    sev_attr = pairs["sev_high"] if sev >= 66 else pairs["sev_med"] if sev >= 33 else pairs["sev_low"]
+    sev_attr = _severity_attr(pairs, sev)
     _put(win, y, 2, f"Severidad:{sev}/100  {_severity_bar(sev, w - 16)}", sev_attr); y += 2
     dist = a.get("distance_km")
     _put(win, y, 2, f"Distancia:{f'{int(dist)} km' if dist is not None else '—'}", pairs["text"]); y += 1
@@ -270,16 +292,24 @@ def _draw_hour_grid(win: Any, st: State, cursor: int, focus: bool, pairs: dict[s
     for i, cell in enumerate(slot):
         x = 2 + i * (col_w + 1)
         sel = focus and cursor == i
-        attr = pairs["selected"] if sel else pairs["text"]
+        base = pairs["selected"] if sel else pairs["text"]
         if sel:
             _put(win, y0, x - 1, "▶", pairs["accent"] | curses.A_BOLD)
-        hh = F.fmt_clock(cell["t"])
-        tmp = f"{int(cell['temp'])}°" if cell["temp"] is not None else ""
-        wnd = f"{int(cell['wind'])}k" if cell["wind"] is not None else ""
+        # hora bold; icono accent + temp bold; viento dim
+        _put(win, y0, x, F.truncate(F.fmt_clock(cell["t"]), col_w),
+             base if sel else pairs["text"] | curses.A_BOLD)
         ic = F.wmo_icon(cell["code"])
-        lines = [hh, f"{ic} {tmp}", wnd]
-        for li, txt in enumerate(lines):
-            _put(win, y0 + li, x, F.truncate(txt, col_w), attr)
+        tmp = f"{int(cell['temp'])}°" if cell["temp"] is not None else ""
+        if sel:
+            _put(win, y0 + 1, x, F.truncate(f"{ic} {tmp}", col_w), base)
+        else:
+            _put(win, y0 + 1, x, F.truncate(ic, col_w), pairs["accent"])
+            x_tmp = x + len(ic) + 1
+            if x_tmp < w - 1:
+                _put(win, y0 + 1, x_tmp, F.truncate(tmp, max(0, w - 1 - x_tmp)),
+                     pairs["text"] | curses.A_BOLD)
+        wnd = f"{int(cell['wind'])}k" if cell["wind"] is not None else ""
+        _put(win, y0 + 2, x, F.truncate(wnd, col_w), base if sel else pairs["text_dim"])
     return y0 + 3
 
 
@@ -311,17 +341,26 @@ def _draw_daily_grid(win: Any, st: State, cursor: int, focus: bool, pairs: dict[
     for i, cell in enumerate(slot):
         x = 2 + i * (col_w + 1)
         sel = focus and cursor == i
-        attr = pairs["selected"] if sel else pairs["text"]
+        base = pairs["selected"] if sel else pairs["text"]
         if sel:
             _put(win, y0, x - 1, "▶", pairs["accent"] | curses.A_BOLD)
         name = "Hoy" if i == 0 and start == 0 else F.fmt_day(cell["t"])
+        name_attr = base if sel else (pairs["accent"] if name == "Hoy" else pairs["text"] | curses.A_BOLD)
+        _put(win, y0, x, F.truncate(name, col_w), name_attr)
+        # icono en accent
         ic = F.wmo_icon(cell["code"])
+        _put(win, y0 + 1, x, F.truncate(ic, col_w), base if sel else pairs["accent"])
+        # temps: max bold, min + precipación dim
         tmax = f"{int(cell['tmax'])}°" if cell["tmax"] is not None else ""
         tmin = f"{int(cell['tmin'])}°" if cell["tmin"] is not None else ""
         ppt = f" {cell['precip']}mm" if cell["precip"] else ""
-        lines = [name, f"{ic}", f"max {tmax}  min {tmin}{ppt}"]
-        for li, txt in enumerate(lines):
-            _put(win, y0 + li, x, F.truncate(txt, col_w), attr)
+        _put(win, y0 + 2, x, F.truncate("max " + tmax, col_w),
+             base if sel else pairs["text"] | curses.A_BOLD)
+        if not sel:
+            x_min = x + len("max " + tmax)
+            if x_min < w - 1:
+                _put(win, y0 + 2, x_min, F.truncate(" min " + tmin + ppt, max(0, w - 1 - x_min)),
+                     pairs["text_dim"])
     return y0 + 3
 
 

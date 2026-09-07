@@ -57,13 +57,40 @@ nuevo.
 ### Navegación
 
 - `<Tab>`: cicla secciones activas (Controls → Alertas → Clima → Footer → vuelta).
-  La sección activa se resalta.
+  La sección activa se resalta (título en `accent` + `▌`, filtro/fuente bajo el
+  cursor con realce).
 - Dentro de una sección: `<hjkl>` / flechas desplazan el cursor según el contexto
   (índice de filtro, item de lista, celda de grid, botón del footer).
 - `<space>` / `<enter>`: acción (togglar filtro / abrir modal / sincronizar).
 - En modales: `<q>` / `<h>` / `arrow_left` vuelven atrás.
 - Modo prompt (escribir texto): solo `<esc>` (cancela) y `<enter>` (confirma)
   accionan; el resto de teclas imprimibles escriben.
+
+### Temas
+
+El TUI usa roles semánticos de color (tema) en vez de colores fijos. Hay 5
+presets (`clasico`, `mono`, `calido`, `alto_contraste`, `flatline`) y uno
+`custom`:
+
+- Cambiar: `[Config]` (`u`/`U`) → fila `Tema` → `<enter>` cicla con **preview en
+  vivo** detrás del modal; `<enter>` en `Guardar y salir` lo persiste.
+- Clave `tema` en `config.json` (se hereda al archivo de la máquina instalada).
+- `custom`: se configura desde `config.json` con `custom_color_<rol>_fg` /
+  `custom_color_<rol>_bg` usando nombres de color del pack (Negro/Rojo/Verde/
+  Amarillo/Azul/Magenta/Cian/Blanco, `-1` = fondo por defecto). Sin esas claves
+  cae a `clasico`.
+
+Roles usados: `header`, `controls`, `footer`, `accent`, `text`, `text_dim`,
+`weather`, `divider`, `toast`, `error`, `border`, `selected`, `sev_high`,
+`sev_med`, `sev_low`, `filter_active`.
+
+### Severidad y clima
+
+- La severidad de cada alerta se colorea por umbrales: `<33` (sev_low), `<66`
+  (sev_med), `>=66` (sev_high) — tanto en la lista (`47/100`) como en el detalle
+  (barra `#`).
+- En la grilla de clima: hora/nombre en bold, icono WMO en `accent`, temperatura
+  en bold y viento/precipitación en `text_dim`.
 
 ## Configuración (`tui/config.json`)
 
@@ -79,12 +106,14 @@ Persistencia propia del TUI (no choca con la web ni con la DB del server):
   "scope": "world",
   "radius": 250,
   "active_location_id": null,
-  "weather_view": "hourly"
+  "weather_view": "hourly",
+  "tema": "clasico"
 }
 ```
 
 - `base_url` se puede cambiar por CLI (`--url`) o editando el archivo, por si
   cambia el mini-server o el puerto de la API.
+- `tema` se cambia desde el modal Configuración (ver arriba) o editando el archivo.
 
 ## Consumo de API
 

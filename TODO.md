@@ -9,13 +9,14 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - Formato de commit: `v0.N <tipo>: <descripción>` en español.
 
 ## Doing
-- (vacío)
+- v0.15 feat (FASE 2): severidad coloreada (verde/amarillo/rojo por umbral) +
+      grilla de clima coloreada (temp bold, viento dim, iconos accent) +
+      docs de temas y severidad en README. En curso: panels.py (fragmento
+      sev + grilla) → README → py_compile + smoke tmux → commit/tag/push.
 
 ## Next
-- v0.14 feat (FASE 2): severidad coloreada (verde/amarillo/rojo por umbral) +
-      grilla de clima coloreada (temp bold, viento dim, iconos accent).
-- v0.15 chore: limpieza final, docs de uso y atajos, verificación manual E2E
-      contra el server real.
+- v0.16 chore: limpieza final, docs de uso y atajos restantes, verificación
+      manual E2E contra el server real.
 
 ## Done
 - [x] v0.14 feat (FASE 1): normalización visual — roles semánticos en
