@@ -375,3 +375,176 @@ def manage_locations(scr: Any, st: State, api: Any) -> Any:
                 buf = buf[:-1]
             elif 32 <= key <= 126:
                 buf += chr(key)
+
+
+def source_config(scr: Any, st: State, api: Any, name: str) -> Any:
+    """Modal de config de una fuente: intervalo fijo, sincronizar ahora, recargar."""
+    h, w = scr.getmaxyx()
+    cfg = st.config.get("sources", {}).get(name, {})
+    box_w = min(w - 6, 56)
+    box_h = 12
+    by = max(0, (h - box_h) // 2)
+    bx = max(0, (w - box_w) // 2)
+    win = _box(scr, by, bx, box_h, box_w, f" Configurar {F.SOURCE_LABELS.get(name, name)} ")
+
+    INTERVALS = {
+        "usgs": [1, 2, 3, 4, 5, 10, 15, 30, 60],
+        "eonet": [1, 2, 3, 4, 5, 10, 15, 30, 60],
+        "gdacs": [5, 10, 15, 30, 60],
+        "open_meteo": [10, 15, 30, 60],
+    }
+    intervals = INTERVALS.get(name, [10, 15, 30, 60])
+    sel = 0  # menu row
+    iv_sel = 0
+    cur_iv = cfg.get("interval_minutes")
+    if cur_iv in intervals:
+        iv_sel = intervals.index(cur_iv)
+
+    def draw() -> None:
+        try:
+            last = F.fmt_clock(cfg.get("last_fetch_at"))
+            nxt = F.fmt_clock(cfg.get("next_run"))
+            win.addstr(1, 2, f"Última: {last}   Próxima: {nxt}")
+            win.addstr(2, 2, f"Intervalo (min):", curses.A_BOLD)
+            x = 18
+            for i, iv in enumerate(intervals[:8]):
+                attr = curses.A_REVERSE if sel == 0 and i == iv_sel else curses.A_NORMAL
+                try:
+                    win.addstr(2, x, f"{iv:>3}", attr)
+                except curses.error:
+                    pass
+                x += 4
+            rows = [
+                ("Sincronizar ahora", "POST /sync"),
+                ("Recargar", "POST /refresh"),
+                ("Cerrar", ""),
+            ]
+            for i, (label, sub) in enumerate(rows):
+                attr = curses.A_REVERSE if sel == i + 1 else curses.A_NORMAL
+                try:
+                    win.addstr(4 + i, 2, f" {label:<18}", attr)
+                except curses.error:
+                    pass
+        except curses.error:
+            pass
+        win.touchwin()
+        win.refresh()
+
+    while True:
+        scr.refresh()
+        draw()
+        key = scr.getch()
+        if sel == 0:
+            if key in (curses.KEY_LEFT, ord("h")):
+                iv_sel = max(0, iv_sel - 1)
+            elif key in (curses.KEY_RIGHT, ord("l")):
+                iv_sel = min(len(intervals) - 1, iv_sel + 1)
+            elif key in (curses.KEY_DOWN, ord("j")):
+                sel = 1
+            elif key in (curses.KEY_ENTER, 10, 13):
+                mins = intervals[iv_sel]
+                try:
+                    api.source_interval(name, mins)
+                    st.toast = f"Intervalo {name} → {mins} min"
+                except Exception as e:
+                    st.toast = str(e)
+                return SYNCED
+        else:
+            if key in (curses.KEY_UP, ord("k")):
+                sel -= 1
+            elif key in (curses.KEY_ENTER, 10, 13):
+                if sel == 1:
+                    try:
+                        api.source_sync(name)
+                        st.toast = f"{F.SOURCE_LABELS.get(name, name)} sincronizada"
+                    except Exception as e:
+                        st.toast = str(e)
+                    return SYNCED
+                elif sel == 2:
+                    try:
+                        api.source_refresh(name)
+                        st.toast = f"{F.SOURCE_LABELS.get(name, name)} recargada"
+                    except Exception as e:
+                        st.toast = str(e)
+                    return SYNCED
+                else:  # cerrar
+                    return None
+        if key in (ord("q"), 27) or (curses.KEY_LEFT == key and sel != 0):
+            return None
+
+
+def global_config(scr: Any, st: State) -> str | None:
+    """Modal dev-friendly de configuración global: URL base, radio y vista de clima."""
+    h, w = scr.getmaxyx()
+    box_w = min(w - 6, 56)
+    box_h = 10
+    by = max(0, (h - box_h) // 2)
+    bx = max(0, (w - box_w) // 2)
+    win = _box(scr, by, bx, box_h, box_w, " Configuración ")
+    cursor = 0
+    fields = ["base_url", "radius", "weather_view"]
+    changed = False
+    rows = [
+        ("URL base", st.base_url),
+        ("Radio (km)", str(st.radius)),
+        ("Vista clima", st.weather_view),
+        ("Guardar y salir", ""),
+    ]
+
+    def draw() -> None:
+        for i, (label, val) in enumerate(rows):
+            if i == 0:
+                val = st.base_url
+            elif i == 1:
+                val = str(st.radius)
+            elif i == 2:
+                val = st.weather_view
+            attr = curses.A_REVERSE if i == cursor else curses.A_NORMAL
+            try:
+                line = f" {label:<16} {val}"
+                win.addstr(i + 1, 2, F.truncate(line, box_w - 4), attr)
+            except curses.error:
+                pass
+        try:
+            win.addstr(box_h - 2, 2, " ↑↓ mover  Enter editar  q/← salir", curses.A_DIM)
+        except curses.error:
+            pass
+        win.touchwin()
+        win.refresh()
+
+    base_url = st.cfg["base_url"]
+    while True:
+        scr.refresh()
+        draw()
+        key = scr.getch()
+        if key in (curses.KEY_UP, ord("k")) and cursor > 0:
+            cursor -= 1
+        elif key in (curses.KEY_DOWN, ord("j")) and cursor < len(rows) - 1:
+            cursor += 1
+        elif key in (curses.KEY_ENTER, 10, 13):
+            if cursor == 0:
+                new_url = _prompt(scr, "URL base (ej: http://192.168.1.42:8000)", base_url)
+                if new_url is not None and new_url.strip():
+                    st.cfg["base_url"] = new_url.strip().rstrip("/")
+                    base_url = st.cfg["base_url"]
+                    st.client = None  # se reconstruye en App
+                    changed = True
+            elif cursor == 1:
+                new_r = _prompt(scr, "Radio (km)", str(st.radius))
+                if new_r is not None and new_r.strip().isdigit():
+                    st.cfg["radius"] = int(new_r.strip())
+                    changed = True
+            elif cursor == 2:
+                st.cfg["weather_view"] = "daily" if st.weather_view == "hourly" else "hourly"
+                st.weather_view = st.cfg["weather_view"]
+                changed = True
+            elif cursor == 3:
+                if changed:
+                    return "save"
+                return None
+        elif key in (ord("q"), 27, curses.KEY_LEFT):
+            if changed:
+                return "save"
+            return None
+        elif key == ord("s"):
+            return "save"

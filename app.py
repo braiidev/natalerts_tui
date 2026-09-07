@@ -13,7 +13,15 @@ from .api import ApiError, Client
 from .state import State
 
 # Secciones navegables con <tab>
-SECTIONS = ["controls", "alerts", "weather"]
+SECTIONS = ["controls", "alerts", "weather", "footer"]
+
+# Intervalos de fuente válidos (para el modal de fuente)
+SOURCE_INTERVALS = {
+    "usgs": [1, 2, 3, 4, 5, 10, 15, 30, 60],
+    "eonet": [1, 2, 3, 4, 5, 10, 15, 30, 60],
+    "gdacs": [5, 10, 15, 30, 60],
+    "open_meteo": [10, 15, 30, 60],
+}
 
 
 class App:
@@ -65,14 +73,16 @@ class App:
     def _init_windows(self) -> None:
         h, w = self.scr.getmaxyx()
         self.h_h, self.h_w = h, w
-        # Layout: header 1, controls 1, body (resto)
+        # Layout: header 1, controls 1, body (resto - footer 2), footer 2
         self.header = curses.newwin(1, w, 0, 0)
         self.controls = curses.newwin(1, w, 1, 0)
         body_top = 2
-        body_h = h - body_top
+        self.footer_h = 2
+        body_h = h - body_top - self.footer_h
         if body_h < 1:
             body_h = 1
         self.body = curses.newwin(body_h, w, body_top, 0)
+        self.footer = curses.newwin(self.footer_h, w, body_top + body_h, 0)
         # Split del body: 50 / 50
         mid = w // 2
         self.left = self.body.derwin(body_h, mid, 0, 0)
@@ -82,6 +92,13 @@ class App:
     # ---------- refrescos de datos ----------
     def _client(self) -> Client:
         return self.st.client  # type: ignore[return-value]
+
+    def _rebuild_client(self) -> None:
+        self.st.client = Client(self.st.base_url)
+        self.refresh_config()
+        self.refresh_locations()
+        self.refresh_alerts()
+        self.refresh_weather()
 
     def refresh_alerts(self) -> None:
         st = self.st
@@ -156,7 +173,13 @@ class App:
             idx = SECTIONS.index(self.section)
             self.section = SECTIONS[(idx + 1) % len(SECTIONS)]
             self.cursor = 0
+            if self.section == "alerts" and self.detail_open:
+                self.section = "footer"
             return False
+        if key in (ord("u"), ord("U")):
+            self._open_config()
+            return False
+
         # En la sección de alertas con detalle abierto, q/h/←/esc cierran el
         # detalle (no salen del TUI).
         if self.section == "alerts" and self.detail_open:
@@ -171,6 +194,8 @@ class App:
             return self._key_alerts(key)
         if self.section == "weather":
             return self._key_weather(key)
+        if self.section == "footer":
+            return self._key_footer(key)
         return False
 
     # ---------- controles ----------
@@ -361,6 +386,50 @@ class App:
             ]
             modals.weather_detail(self.scr, f"Día {name}", lines)
 
+    # ---------- footer ----------
+    def _key_footer(self, key: int) -> bool:
+        st = self.st
+        sources = list((st.config.get("sources") or {}).keys())
+        # cursor en footer: 0..len(sources)-1, luego botones
+        total_rows = len(sources) + 2  # +2 botones (config, sync all)
+        nh = list(range(len(sources))) + [len(sources), len(sources) + 1]
+        if key in (curses.KEY_LEFT, ord("h")):
+            self.cursor = max(0, self.cursor - 1)
+        elif key in (curses.KEY_RIGHT, ord("l")):
+            self.cursor = min(total_rows - 1, self.cursor + 1)
+        elif key in (curses.KEY_UP, ord("k")):
+            self.cursor = max(0, self.cursor - 1)
+        elif key in (curses.KEY_DOWN, ord("j")):
+            self.cursor = min(total_rows - 1, self.cursor + 1)
+        elif key in (curses.KEY_ENTER, 10, 13, ord(" ")):
+            if self.cursor < len(sources):
+                modals.source_config(self.scr, st, self._client(), sources[self.cursor])
+                self.refresh_config()
+            elif self.cursor == len(sources):
+                self._open_config()
+            elif self.cursor == len(sources) + 1:
+                try:
+                    self._client().sync_all()
+                    st.toast = "Sincronizando todas las fuentes…"
+                except ApiError as e:
+                    st.toast = f"Error: {e}"
+                self.refresh_config()
+        return False
+
+    # ---------- config ----------
+    def _open_config(self) -> None:
+        st = self.st
+        res = modals.global_config(self.scr, st)
+        if res == "save":
+            st.cfg["radius"] = st.radius
+            self._persist()
+            if not self.st.client or self.st.client.base_url != st.base_url:
+                self._rebuild_client()
+            else:
+                self.refresh_alerts()
+        elif res == "changed":
+            pass
+
     def _persist(self) -> None:
         from . import config as C
         st = self.st
@@ -402,11 +471,13 @@ class App:
         else:
             P.draw_alerts_list(self.left, st, self.cursor, focus("alerts"))
         P.draw_weather(self.right, st, self.cursor, focus("weather"))
+        P.draw_footer(self.footer, st, self.cursor, focus("footer"))
         self.header.refresh()
         self.controls.refresh()
         self.body.refresh()
         self.left.refresh()
         self.right.refresh()
+        self.footer.refresh()
         self.scr.refresh()
 
 def _arr(data: dict[str, Any], key: str, i: int) -> Any:

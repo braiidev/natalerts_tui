@@ -322,6 +322,36 @@ def _arr(data: dict[str, Any], key: str, i: int) -> Any:
     return None
 
 
+def draw_footer(win: Any, st: State, cursor: int, focus: bool) -> None:
+    h, w = win.getmaxyx()
+    _fill(win, curses.color_pair(C_FOOTER))
+    cfg = st.config
+    sources = cfg.get("sources", {})
+    names = list(sources.keys())
+    # Botones de fuentes en fila 0
+    y = 0
+    x = 0
+    for i, name in enumerate(names):
+        s = sources[name]
+        label = F.SOURCE_LABELS.get(name, name)
+        status = "ok" if s.get("ok") else ("err" if s.get("error") else "…" if s.get("running") else "off")
+        last = F.fmt_clock(s.get("last_fetch_at"))
+        item = f" [{label} {status}] {last}"
+        if i == cursor and focus:
+            _put(win, y, x, "▶" + item, curses.color_pair(C_SELECTED) | curses.A_BOLD)
+            x += 1 + len(item)
+            continue
+        _put(win, y, x, item, curses.color_pair(C_FOOTER))
+        x += len(item)
+        if x > w - 20:
+            break
+
+    # Fila 1: reloj + countdown + Sync All + Config
+    y = min(1, h - 1)
+    right = "[Config]  [Sync All]"
+    _put(win, y, max(0, w - len(right) - 1), right, curses.color_pair(C_FOOTER))
+
+
 def draw_toast(st: State, win: Any) -> None:
     if not st.toast:
         return
