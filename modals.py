@@ -11,6 +11,7 @@ import curses
 from typing import Any, Callable
 
 from . import format as F
+from . import update as U
 from .state import State
 
 # Retornos de acciones de modales
@@ -474,21 +475,24 @@ def source_config(scr: Any, st: State, api: Any, name: str) -> Any:
 
 
 def global_config(scr: Any, st: State) -> str | None:
-    """Modal dev-friendly de configuración global: URL base, radio y vista de clima."""
+    """Modal dev-friendly de configuración global: URL base, radio, vista de
+    clima y acción de comprobar/actualizar el propio TUI."""
     h, w = scr.getmaxyx()
     box_w = min(w - 6, 56)
-    box_h = 10
+    box_h = 11
     by = max(0, (h - box_h) // 2)
     bx = max(0, (w - box_w) // 2)
     win = _box(scr, by, bx, box_h, box_w, " Configuración ")
     cursor = 0
     fields = ["base_url", "radius", "weather_view"]
     changed = False
+    version = U.current_version()
     rows = [
         ("URL base", st.base_url),
         ("Radio (km)", str(st.radius)),
         ("Vista clima", st.weather_view),
         ("Guardar y salir", ""),
+        ("Comprobar actualización", version),
     ]
 
     def draw() -> None:
@@ -499,6 +503,8 @@ def global_config(scr: Any, st: State) -> str | None:
                 val = str(st.radius)
             elif i == 2:
                 val = st.weather_view
+            elif i == 4:
+                val = U.current_version()
             attr = curses.A_REVERSE if i == cursor else curses.A_NORMAL
             try:
                 line = f" {label:<16} {val}"
@@ -542,6 +548,10 @@ def global_config(scr: Any, st: State) -> str | None:
                 if changed:
                     return "save"
                 return None
+            elif cursor == 4:
+                # acción: comprobar / aplicar actualización (la maneja App en
+                # un thread; con éxito relanza la TUI)
+                return "update"
         elif key in (ord("q"), 27, curses.KEY_LEFT):
             if changed:
                 return "save"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import curses
+import threading
 import time
 from typing import Any
 
@@ -42,6 +43,7 @@ class App:
         self._last_alerts = 0.0
         self._last_weather = 0.0
         self._last_config = 0.0
+        self._relaunch_at: float | None = None
         self.busy = False
         self._init_colors()
         self._init_windows()
@@ -452,8 +454,34 @@ class App:
                 self._rebuild_client()
             else:
                 self.refresh_alerts()
+        elif res == "update":
+            self._start_update()
         elif res == "changed":
             pass
+
+    # ---------- self-update ----------
+    def _start_update(self) -> None:
+        """Arranca la actualización en un thread (git fetch/pull bloquean ~seg)."""
+        st = self.st
+        st.set_toast("Comprobando actualización…")
+        threading.Thread(
+            target=self._run_update, name="natalerts-tui-update", daemon=True
+        ).start()
+
+    def _run_update(self) -> None:
+        from . import update as U
+
+        try:
+            res = U.do_update()
+            if res.updated:
+                # dar ~1.5s de visibilidad al toast y luego relanzar desde el loop
+                self._relaunch_at = time.monotonic() + 1.5
+                self.st.set_toast(f"Actualizado a {res.available} — reiniciando…")
+                self.st.relaunch = True
+            else:
+                self.st.set_toast(res.message)
+        except Exception as e:  # noqa: BLE001
+            self.st.set_toast(f"Error: {e}")
 
     def _persist(self) -> None:
         from . import config as C
@@ -486,6 +514,14 @@ class App:
                 if self.handle_key(key):
                     break
             self._maybe_reload()
+            if (
+                self.st.relaunch
+                and self._relaunch_at is not None
+                and time.monotonic() >= self._relaunch_at
+            ):
+                # permite que el toast "Actualizado — reiniciando" se vea antes
+                # de romper el loop; main.py relanza con os.execv
+                break
 
     def _resize(self) -> None:
         """Rebuild windows tras un resize de terminal (evita artefactos)."""

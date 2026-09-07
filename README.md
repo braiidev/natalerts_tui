@@ -18,11 +18,26 @@ subproyecto independiente del server + web.
 ## Instalación / ejecución
 
 ```bash
-python3 tui/main.py                 # URL por defecto de config.json
-python3 tui/main.py --url http://192.168.1.42:8000   # override de URL base
+# Instalación (repo braiidev/natalerts_tui → ~/.local/natalerts/tui,
+# comando /usr/local/bin/natalerts-tui):
+curl -fsSL https://raw.githubusercontent.com/braiidev/natalerts_tui/main/install.sh | bash
+
+natalerts-tui                            # arranca la TUI
+natalerts-tui --url http://192.168.1.42:8000   # override de URL base
 ```
 
 Corre en cualquier TUI (terminal interactiva). `<Esc>` o `q` en estado raíz sale.
+
+### Actualización
+
+```bash
+natalerts-tui --check-update    # ¿hay versión nueva?
+natalerts-tui --update          # aplica la actualización y sale
+```
+
+O desde dentro de la TUI: `[Config]` (`u`/`U`) → `Comprobar actualización`; si
+hay versión nueva la aplica y **relanza la TUI automáticamente** con el código
+nuevo.
 
 ## Interfaz (una vista, layout similar a la web)
 

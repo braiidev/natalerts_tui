@@ -12,10 +12,17 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - (vacío)
 
 ## Next
-- v0.11 chore: limpieza final, docs de uso y atajos, verificación manual E2E
+- v0.12 chore: limpieza final, docs de uso y atajos, verificación manual E2E
       contra el server real.
 
 ## Done
+- [x] v0.11 feat: instalador + self-update — `install.sh` (curl|sh, repo
+      `braiidev/natalerts_tui` en main) que instala en `~/.local/natalerts/tui`
+      con launcher `/usr/local/bin/natalerts-tui`; CLI `--update`,
+      `--check-update`, `--uninstall`, `--version`; dentro del TUI, en
+      `[Config]`, acción `Comprobar actualización` que aplica el update en
+      background (patrón Clock, decide por commits `HEAD..origin/main`) y
+      **relanza la TUI** (`os.execv`) si la actualización fue exitosa.
 - [x] v0.8 fix: clima — cursor separado en filas interactivas (ubicación/ver) +
       celdas de grilla; `<enter>` abre el detalle de la celda (antes la tecla
       colisionaba con los toggles de ubicación/vista).
