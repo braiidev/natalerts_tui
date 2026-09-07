@@ -31,6 +31,7 @@ class State:
         self.weather_view = cfg.get("weather_view", "hourly")
         self.hour_window = 0
         self.daily_window = 0
+        self.tema = cfg.get("tema", "clasico")
 
         # Fuentes / config
         self.config: dict[str, Any] = {}

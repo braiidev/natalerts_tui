@@ -23,6 +23,7 @@ DEFAULTS: dict[str, Any] = {
     "radius": 250,
     "active_location_id": None,
     "weather_view": "hourly",
+    "tema": "clasico",
 }
 
 # Opciones válidas para edición desde el modal de config

@@ -12,10 +12,21 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - (vacío)
 
 ## Next
-- v0.14 chore: limpieza final, docs de uso y atajos, verificación manual E2E
+- v0.14 feat (FASE 2): severidad coloreada (verde/amarillo/rojo por umbral) +
+      grilla de clima coloreada (temp bold, viento dim, iconos accent).
+- v0.15 chore: limpieza final, docs de uso y atajos, verificación manual E2E
       contra el server real.
 
 ## Done
+- [x] v0.14 feat (FASE 1): normalización visual — roles semánticos en
+      `theme.py` (PAIR_*, COLORS_PACK en español, presets clasico/mono/calido/
+      alto_contraste/flatline/custom, resolve_palette + init_pairs); temas
+      conmutables y persistidos (`tema` en DEFAULTS/config.json) con selector
+      en `[Config]` y **preview en vivo** tras el modal; reglas divisorias `─`
+      bajo controles y títulos de sección; foco de sección más claro (accent +
+      `▌` en títulos); feedback de cursor en `#controls` (filtro activo en cyan)
+      y `#footer` (fuente bajo el cursor en `▶` + selected); limpieza de
+      interior del modal (sin texto fantasma).
 - [x] v0.13 fix: launcher con shebang /bin/sh — el comando solo funcionaba con
       bash presente (Alpine sin bash rompía el launcher); el cuerpo es POSIX.
 - [x] v0.12 fix: install.sh no aborta si sudo pide password — instala el

@@ -1,7 +1,8 @@
 """Dibujo de paneles del TUI.
 
-Funciones puras que reciben curses windows/state y pintan con color. No
-manejan entrada ni estado mutante: eso vive en App.
+Funciones puras que reciben curses windows/state/theme y pintan. No manejan
+entrada ni estado mutante: eso vive en App. Los colores vienen en un dict
+``pairs`` (roles semánticos del tema — ver theme.py) en vez de constantes.
 """
 
 from __future__ import annotations
@@ -12,18 +13,6 @@ from typing import Any
 
 from . import format as F
 from .state import TOAST_TTL, State
-
-# IDs de color registrados en App.init_colors
-C_HEADER = 1
-C_CONTROLS = 2
-C_ACTIVE = 3
-C_NORMAL = 4
-C_TITLE = 5
-C_CARD = 6
-C_SELECTED = 7
-C_FOOTER = 8
-C_TOAST = 9
-C_BAR = 10
 
 
 def _put(win: Any, y: int, x: int, text: str, attr: int = 0) -> None:
@@ -42,29 +31,38 @@ def _fill(win: Any, attr: int) -> None:
             pass
 
 
-def draw_header(win: Any, st: State) -> None:
+def draw_separator(win: Any, pairs: dict[str, int]) -> None:
+    """Regla horizontal simple (divisor entre secciones)."""
     h, w = win.getmaxyx()
     if h <= 0:
         return
     win.erase()
-    _fill(win, curses.color_pair(C_HEADER))
+    _put(win, 0, 0, "─" * w, pairs["divider"])
+
+
+def draw_header(win: Any, st: State, pairs: dict[str, int]) -> None:
+    h, w = win.getmaxyx()
+    if h <= 0:
+        return
+    win.erase()
+    _fill(win, pairs["header"])
     base = st.base_url.replace("http://", "").replace("https://", "")
     loc = st.active_location()
     loc_name = loc["name"] if loc else (st.config.get("zone", {}).get("name") or "Zona")
     title = " Natural Alerts "
-    _put(win, 0, 0, title, curses.color_pair(C_TITLE) | curses.A_BOLD)
+    _put(win, 0, 0, title, pairs["header"] | curses.A_BOLD)
     mid = f" {loc_name} " if loc_name else ""
-    _put(win, 0, len(title), mid, curses.color_pair(C_HEADER) | curses.A_BOLD)
+    _put(win, 0, len(title), mid, pairs["header"] | curses.A_BOLD)
     right = base
-    _put(win, 0, max(0, w - len(right) - 1), right, curses.color_pair(C_HEADER))
+    _put(win, 0, max(0, w - len(right) - 1), right, pairs["header"] | curses.A_DIM)
 
 
-def draw_controls(win: Any, st: State) -> None:
+def draw_controls(win: Any, st: State, pairs: dict[str, int], cursor: int, focus: bool) -> None:
     h, w = win.getmaxyx()
     if h <= 0:
         return
     win.erase()
-    _fill(win, curses.color_pair(C_CONTROLS))
+    _fill(win, pairs["controls"])
     f = st.cfg
     provider = f["provider"]
     days = f["days"]
@@ -73,66 +71,63 @@ def draw_controls(win: Any, st: State) -> None:
     scope = f["scope"]
     radius = f["radius"]
 
+    segs = [
+        f"[{F.PROVIDER_LABELS.get(provider, provider) or 'Todos'}▾]",
+        f"[{F.DAY_LABELS.get(days, str(days))}▾]",
+        f"[{F.SORT_LABELS.get(sort, sort)}▾]",
+        f"[{'Asc ↑' if order == 'asc' else 'Desc ↓'}]",
+        f"[Radio {radius} km ±5]",
+        f"[{'Zona' if scope == 'zone' else F.SCOPE_LABELS.get(scope, scope) + '▾'}]",
+    ]
     y = 0
-    seg_provider = f"[{F.PROVIDER_LABELS.get(provider, provider) or 'Todos'}▾]"
-    seg_days = f"[{F.DAY_LABELS.get(days, str(days))}▾]"
-    seg_sort = f"[{F.SORT_LABELS.get(sort, sort)}▾]"
-    seg_order = f"[{'Asc ↑' if order == 'asc' else 'Desc ↓'}]"
-    seg_scope = f"[{'Zona' if scope == 'zone' else F.SCOPE_LABELS.get(scope, scope) + '▾'}]"
-
-    _put(win, y, 0, " " + seg_provider)
-    _put(win, y, len(seg_provider) + 2, seg_days)
-    _put(win, y, len(seg_provider) + len(seg_days) + 4, seg_sort)
-    _put(win, y, len(seg_provider) + len(seg_days) + len(seg_sort) + 6, seg_order)
-
-    # Fila 2 (si cabe) o continuar fila 1 según ancho
-    seg_radius = f"[Radio {radius} km ±5]"
-    start = len(seg_provider) + len(seg_days) + len(seg_sort) + len(seg_order) + 8
-    _put(win, y, start, seg_radius)
-    start2 = len(seg_provider) + len(seg_days) + len(seg_sort) + len(seg_order) + len(seg_radius) + 10
-    _put(win, y, start2, seg_scope)
-    _put(win, y + 1, 0, " [Config]", curses.color_pair(C_ACTIVE) | curses.A_BOLD)
+    x = 0
+    for i, seg in enumerate(segs):
+        attr = pairs["controls"]
+        if focus and cursor == i:
+            attr = pairs["filter_active"]
+        _put(win, y, x, " " + seg, attr)
+        x += 1 + len(seg) + 1
+        if x > w:
+            break
 
 
-def draw_alerts_list(win: Any, st: State, cursor: int, focus: bool) -> None:
+def draw_alerts_list(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str, int]) -> None:
     h, w = win.getmaxyx()
     if h <= 0:
         return
     win.erase()
-    attr_normal = curses.color_pair(C_ACTIVE if focus else C_NORMAL)
-    attr_sel = curses.color_pair(C_SELECTED)
-    # Header del card
+    attr_title = pairs["accent"] if focus else pairs["text"]
+    # Header del card + regla divisora bajo el título
     label = f" Alertas ({st.alert_count})"
     days_txt = f"últimos {st.days} d" if st.days else f"todo el período · {st.sort} {'↑' if st.order == 'asc' else '↓'}"
-    if focus:
-        _put(win, 0, 0, "▌" + label + " " + days_txt, attr_normal | curses.A_BOLD)
-    else:
-        _put(win, 0, 0, " " + label + " " + days_txt, attr_normal | curses.A_BOLD)
-    for y in range(1, h):
+    prefix = "▌" if focus else " "
+    _put(win, 0, 0, prefix + label + " " + days_txt, attr_title | curses.A_BOLD)
+    _put(win, 1, 0, "─" * w, pairs["divider"])
+    for y in range(2, h):
         try:
-            win.addnstr(y, 0, " " * w, w, curses.color_pair(C_NORMAL))
+            win.addnstr(y, 0, " " * w, w, pairs["text"])
         except curses.error:
             pass
 
     if st.error_alerts:
-        _put(win, 1, 1, f"Error: {st.error_alerts}", curses.color_pair(C_TOAST))
+        _put(win, 3, 1, f"Error: {st.error_alerts}", pairs["error"])
         return
     if not st.alerts:
-        _put(win, 1, 1, "Sin alertas para este filtro", curses.color_pair(C_NORMAL))
+        _put(win, 3, 1, "Sin alertas para este filtro", pairs["text"])
         return
 
-    body_h = h - 1
+    body_h = h - 2
     if cursor >= len(st.alerts):
         cursor = len(st.alerts) - 1
     top = max(0, cursor - body_h + 1)
     for i in range(top, min(len(st.alerts), top + body_h)):
-        y = i - top + 1
+        y = i - top + 2
         a = st.alerts[i]
         selected = i == cursor and focus
         row = _alert_line(a)
-        attr = curses.color_pair(C_SELECTED if selected else C_NORMAL)
+        attr = pairs["selected"] if selected else pairs["text"]
         if selected:
-            _put(win, y, 0, "▶", attr | curses.A_BOLD)
+            _put(win, y, 0, "▶", pairs["accent"] | curses.A_BOLD)
         _put(win, y, 2, F.truncate(row, w - 3), attr)
 
 
@@ -148,35 +143,37 @@ def _alert_line(a: dict[str, Any]) -> str:
     return f"{typ:<11} {mag_txt:<6} {place} · {rel} · {sev}/100{dist} · {src}"
 
 
-def draw_alerts_detail(win: Any, st: State, a: dict[str, Any] | None) -> None:
+def draw_alerts_detail(win: Any, st: State, a: dict[str, Any] | None, pairs: dict[str, int]) -> None:
     h, w = win.getmaxyx()
     win.erase()
-    _fill(win, curses.color_pair(C_CARD))
+    _fill(win, pairs["text"])
     if a is None:
-        _put(win, 0, 0, " Alertas", curses.color_pair(C_ACTIVE) | curses.A_BOLD)
+        _put(win, 0, 0, " Alertas", pairs["accent"] | curses.A_BOLD)
         return
-    _put(win, 0, 0, " ▌Detalle de alerta", curses.color_pair(C_ACTIVE) | curses.A_BOLD)
-    y = 1
+    _put(win, 0, 0, " ▌Detalle de alerta", pairs["accent"] | curses.A_BOLD)
+    _put(win, 1, 0, "─" * w, pairs["divider"])
+    y = 2
     d = a.get("details") or {}
     typ = F.TYPE_LABELS.get(a.get("type"), a.get("type") or "?")
-    _put(win, y, 2, f"Tipo:     {typ}", curses.color_pair(C_NORMAL)); y += 1
-    _put(win, y, 2, f"Fuente:   {F.SOURCE_LABELS.get(a.get('source'), a.get('source') or '')}"); y += 1
+    _put(win, y, 2, f"Tipo:     {typ}", pairs["text"]); y += 1
+    _put(win, y, 2, f"Fuente:   {F.SOURCE_LABELS.get(a.get('source'), a.get('source') or '')}", pairs["text"]); y += 1
     mag = F.mag_label(a) or "—"
-    _put(win, y, 2, f"Magnitud: {mag}", curses.color_pair(C_NORMAL)); y += 1
-    _put(win, y, 2, f"Lugar:    {a.get('place') or a.get('title') or '—'}"); y += 1
-    _put(win, y, 2, f"Hora:     {F.fmt_datetime(a.get('time'))} ({F.time_ago(a.get('time'))})"); y += 1
+    _put(win, y, 2, f"Magnitud: {mag}", pairs["text"]); y += 1
+    _put(win, y, 2, f"Lugar:    {a.get('place') or a.get('title') or '—'}", pairs["text"]); y += 1
+    _put(win, y, 2, f"Hora:     {F.fmt_datetime(a.get('time'))} ({F.time_ago(a.get('time'))})", pairs["text"]); y += 1
     sev = int(max(0, min(100, a.get("severity") or 0)))
-    _put(win, y, 2, f"Severidad:{sev}/100  {_severity_bar(sev, w - 16)}", curses.color_pair(C_NORMAL)); y += 2
+    sev_attr = pairs["sev_high"] if sev >= 66 else pairs["sev_med"] if sev >= 33 else pairs["sev_low"]
+    _put(win, y, 2, f"Severidad:{sev}/100  {_severity_bar(sev, w - 16)}", sev_attr); y += 2
     dist = a.get("distance_km")
-    _put(win, y, 2, f"Distancia:{f'{int(dist)} km' if dist is not None else '—'}"); y += 1
+    _put(win, y, 2, f"Distancia:{f'{int(dist)} km' if dist is not None else '—'}", pairs["text"]); y += 1
     link = F.source_link(a)
     if link:
-        _put(win, y, 2, f"Link:     {link}", curses.color_pair(C_NORMAL)); y += 1
+        _put(win, y, 2, f"Link:     {link}", pairs["text"]); y += 1
     title = a.get("title")
     if title and title != (a.get("place") or ""):
-        _put(win, y, 2, f"Título:   {title}", curses.color_pair(C_NORMAL)); y += 1
+        _put(win, y, 2, f"Título:   {title}", pairs["text"]); y += 1
     y += 1
-    _put(win, y, 2, " q/h/← volver", curses.color_pair(C_FOOTER))
+    _put(win, y, 2, " q/h/← volver", pairs["text_dim"])
 
 
 def _severity_bar(sev: int, width: int) -> str:
@@ -185,23 +182,22 @@ def _severity_bar(sev: int, width: int) -> str:
     return "#" * filled + "." * (width - filled)
 
 
-def draw_weather(win: Any, st: State, cursor: int, focus: bool) -> None:
+def draw_weather(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str, int]) -> None:
     h, w = win.getmaxyx()
     if h <= 0:
         return
     win.erase()
-    attr_focus = curses.color_pair(C_ACTIVE if focus else C_NORMAL)
-    attr_sel = curses.color_pair(C_SELECTED)
+    attr_title = pairs["accent"] if focus else pairs["text"]
     head = " ▌Clima" if focus else " Clima"
-    _put(win, 0, 0, head, attr_focus | curses.A_BOLD)
-    _fill_line = lambda y: _put(win, y, 0, " " * w, curses.color_pair(C_NORMAL))
+    _put(win, 0, 0, head, attr_title | curses.A_BOLD)
+    _put(win, 1, 0, "─" * w, pairs["divider"])
 
     wd = st.weather
     if st.error_weather:
-        _put(win, 1, 1, f"Error: {st.error_weather}", curses.color_pair(C_TOAST))
+        _put(win, 3, 1, f"Error: {st.error_weather}", pairs["error"])
         return
     if not wd:
-        _put(win, 1, 1, "Cargando clima...", curses.color_pair(C_NORMAL))
+        _put(win, 3, 1, "Cargando clima...", pairs["text"])
         return
 
     loc = st.active_location()
@@ -216,38 +212,38 @@ def draw_weather(win: Any, st: State, cursor: int, focus: bool) -> None:
     updated = F.time_ago(wd.get("fetched_at"))
     icon = F.wmo_icon(wd.get("weathercode"))
 
-    y = 1
-    _put(win, y, 2, f"{loc_name}", curses.color_pair(C_ACTIVE) | curses.A_BOLD); y += 1
-    _put(win, y, 2, f"{icon} {temp}°C" if temp is not None else " —°C", curses.color_pair(C_NORMAL) | curses.A_BOLD); y += 1
-    _put(win, y, 2, f"{desc}  {wind_txt}", curses.color_pair(C_NORMAL)); y += 1
-    _put(win, y, 2, f"{tz} · actualizado {updated}", curses.color_pair(C_NORMAL)); y += 2
+    y = 2
+    _put(win, y, 2, f"{loc_name}", pairs["accent"] | curses.A_BOLD); y += 1
+    _put(win, y, 2, f"{icon} {temp}°C" if temp is not None else " —°C", pairs["text"] | curses.A_BOLD); y += 1
+    _put(win, y, 2, f"{desc}  {wind_txt}", pairs["text"]); y += 1
+    _put(win, y, 2, f"{tz} · actualizado {updated}", pairs["text_dim"]); y += 2
 
     # Toggle ubicación (+)
-    row_loc = (curses.color_pair(C_SELECTED) if focus and cursor == 0
-               else curses.color_pair(C_ACTIVE) if focus
-               else curses.color_pair(C_NORMAL))
+    row_loc = (pairs["selected"] if focus and cursor == 0
+               else pairs["accent"] if focus
+               else pairs["text"])
     _put(win, y, 2, " ▲/▼ ubicación  [+] añadir  [m] gestionar", row_loc); y += 2
 
     # Toggle horario/semanal
     view_txt = " [horario]" if st.weather_view == "hourly" else " [semanal]"
-    row_view = (curses.color_pair(C_SELECTED) if focus and cursor == 1
-                else curses.color_pair(C_ACTIVE) if focus
-                else curses.color_pair(C_NORMAL))
+    row_view = (pairs["selected"] if focus and cursor == 1
+                else pairs["accent"] if focus
+                else pairs["text"])
     _put(win, y, 2, " Ver:" + view_txt, row_view); y += 1
 
     # Celda seleccionada en la grilla: cursor 2..4 (cell_idx = cursor - 2).
     cell_cursor = cursor - 2 if focus and cursor >= 2 else -1
     if st.weather_view == "hourly":
-        y = _draw_hour_grid(win, st, cell_cursor, focus, y, w)
+        y = _draw_hour_grid(win, st, cell_cursor, focus, pairs, y, w)
     else:
-        y = _draw_daily_grid(win, st, cell_cursor, focus, y, w)
+        y = _draw_daily_grid(win, st, cell_cursor, focus, pairs, y, w)
 
 
-def _draw_hour_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: int) -> int:
+def _draw_hour_grid(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str, int], y0: int, w: int) -> int:
     hourly = (st.weather or {}).get("hourly") or {}
     times = hourly.get("time") or []
     if not times:
-        _put(win, y0, 2, "Sin proyección horaria", curses.color_pair(C_NORMAL))
+        _put(win, y0, 2, "Sin proyección horaria", pairs["text"])
         return y0 + 1
     # construir celdas hora
     cells = []
@@ -265,7 +261,7 @@ def _draw_hour_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: i
             "cloud": _arr(hourly, "cloudcover", i),
             "press": _arr(hourly, "pressure_msl", i),
         })
-    _put(win, y0, 2, " Proyección: +1 +2 +3 horas  (◀ ▶ o h/l)", curses.color_pair(C_NORMAL)); y0 += 1
+    _put(win, y0, 2, " Proyección: +1 +2 +3 horas  (◀ ▶ o h/l)", pairs["text"]); y0 += 1
     WINDOW = 3  # +1,+2,+3
     n = len(cells)
     start = max(0, min(st.hour_window, max(0, n - WINDOW)))
@@ -274,9 +270,9 @@ def _draw_hour_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: i
     for i, cell in enumerate(slot):
         x = 2 + i * (col_w + 1)
         sel = focus and cursor == i
-        attr = curses.color_pair(C_SELECTED if sel else C_NORMAL)
+        attr = pairs["selected"] if sel else pairs["text"]
         if sel:
-            _put(win, y0, x - 1, "▶", attr | curses.A_BOLD)
+            _put(win, y0, x - 1, "▶", pairs["accent"] | curses.A_BOLD)
         hh = F.fmt_clock(cell["t"])
         tmp = f"{int(cell['temp'])}°" if cell["temp"] is not None else ""
         wnd = f"{int(cell['wind'])}k" if cell["wind"] is not None else ""
@@ -287,11 +283,11 @@ def _draw_hour_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: i
     return y0 + 3
 
 
-def _draw_daily_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: int) -> int:
+def _draw_daily_grid(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str, int], y0: int, w: int) -> int:
     daily = (st.weather or {}).get("daily") or {}
     times = daily.get("time") or []
     if not times:
-        _put(win, y0, 2, "Sin proyección semanal", curses.color_pair(C_NORMAL))
+        _put(win, y0, 2, "Sin proyección semanal", pairs["text"])
         return y0 + 1
     cells = []
     for i, t in enumerate(times):
@@ -306,7 +302,7 @@ def _draw_daily_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: 
             "uv": _arr(daily, "uv_index_max", i),
             "windMax": _arr(daily, "wind_speed_10m_max", i),
         })
-    _put(win, y0, 2, f" Proyección: +1 +2 +3 días  (◀ ▶ o h/l, hasta 16d)", curses.color_pair(C_NORMAL)); y0 += 1
+    _put(win, y0, 2, f" Proyección: +1 +2 +3 días  (◀ ▶ o h/l, hasta 16d)", pairs["text"]); y0 += 1
     WINDOW = 3
     n = len(cells)
     start = max(0, min(st.daily_window, max(0, n - WINDOW)))
@@ -315,9 +311,9 @@ def _draw_daily_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: 
     for i, cell in enumerate(slot):
         x = 2 + i * (col_w + 1)
         sel = focus and cursor == i
-        attr = curses.color_pair(C_SELECTED if sel else C_NORMAL)
+        attr = pairs["selected"] if sel else pairs["text"]
         if sel:
-            _put(win, y0, x - 1, "▶", attr | curses.A_BOLD)
+            _put(win, y0, x - 1, "▶", pairs["accent"] | curses.A_BOLD)
         name = "Hoy" if i == 0 and start == 0 else F.fmt_day(cell["t"])
         ic = F.wmo_icon(cell["code"])
         tmax = f"{int(cell['tmax'])}°" if cell["tmax"] is not None else ""
@@ -336,10 +332,10 @@ def _arr(data: dict[str, Any], key: str, i: int) -> Any:
     return None
 
 
-def draw_footer(win: Any, st: State, cursor: int, focus: bool) -> None:
+def draw_footer(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str, int]) -> None:
     h, w = win.getmaxyx()
     win.erase()
-    _fill(win, curses.color_pair(C_FOOTER))
+    _fill(win, pairs["footer"])
     cfg = st.config
     sources = cfg.get("sources", {})
     names = list(sources.keys())
@@ -353,10 +349,16 @@ def draw_footer(win: Any, st: State, cursor: int, focus: bool) -> None:
         last = F.fmt_clock(s.get("last_fetch_at"))
         item = f" [{label} {status}] {last}"
         if i == cursor and focus:
-            _put(win, y, x, "▶" + item, curses.color_pair(C_SELECTED) | curses.A_BOLD)
+            _put(win, y, x, "▶" + item, pairs["selected"] | curses.A_BOLD)
             x += 1 + len(item)
             continue
-        _put(win, y, x, item, curses.color_pair(C_FOOTER))
+        if status == "ok":
+            attr = pairs["accent"]
+        elif status == "err":
+            attr = pairs["error"]
+        else:
+            attr = pairs["footer"]
+        _put(win, y, x, item, attr)
         x += len(item)
         if x > w - 20:
             break
@@ -364,10 +366,10 @@ def draw_footer(win: Any, st: State, cursor: int, focus: bool) -> None:
     # Fila 1: reloj + countdown + Sync All + Config
     y = min(1, h - 1)
     right = "[Config]  [Sync All]"
-    _put(win, y, max(0, w - len(right) - 1), right, curses.color_pair(C_FOOTER))
+    _put(win, y, max(0, w - len(right) - 1), right, pairs["footer"])
 
 
-def draw_toast(st: State, win: Any) -> None:
+def draw_toast(st: State, win: Any, pairs: dict[str, int]) -> None:
     if not st.toast:
         return
     # expiración del toast: se limpia solo tras TTL
@@ -380,7 +382,7 @@ def draw_toast(st: State, win: Any) -> None:
     box_w = len(msg) + 4
     y = h - 3
     x = max(0, (w - box_w) // 2)
-    attr = curses.color_pair(C_TOAST) | curses.A_BOLD
+    attr = pairs["toast"] | curses.A_BOLD
     try:
         win.addstr(y, x, " " * box_w, attr)
         win.addstr(y, x, " " + msg + " ", attr)

@@ -10,6 +10,7 @@ from typing import Any
 from . import format as F
 from . import modals
 from . import panels as P
+from . import theme as T
 from .api import ApiError, Client
 from .state import State
 
@@ -45,7 +46,7 @@ class App:
         self._last_config = 0.0
         self._relaunch_at: float | None = None
         self.busy = False
-        self._init_colors()
+        self._install_theme()
         self._init_windows()
         # primer refresh inmediato
         self.refresh_config()
@@ -54,40 +55,22 @@ class App:
         self.refresh_weather()
 
     # ---------- setup ----------
-    def _init_colors(self) -> None:
-        curses.use_default_colors()
-        for idx in (P.C_HEADER, P.C_CONTROLS, P.C_ACTIVE, P.C_NORMAL, P.C_TITLE,
-                    P.C_CARD, P.C_SELECTED, P.C_FOOTER, P.C_TOAST, P.C_BAR):
-            try:
-                curses.init_pair(idx, -1, -1)
-            except curses.error:
-                pass
-        # pares con fondo/foreground
-        pairs = {
-            P.C_HEADER: (7, 4),      # text blanco sobre azul
-            P.C_CONTROLS: (0, 8),    # negro sobre gris
-            P.C_ACTIVE: (2, -1),     # cyan
-            P.C_NORMAL: (7, -1),     # blanco
-            P.C_TITLE: (11, -1),     # amarillo brillante
-            P.C_CARD: (7, -1),
-            P.C_SELECTED: (0, 6),    # negro sobre cyan
-            P.C_FOOTER: (7, 8),      # blanco sobre gris
-            P.C_TOAST: (0, 3),       # negro sobre amarillo
-            P.C_BAR: (3, -1),
-        }
-        for idx, (fg, bg) in pairs.items():
-            try:
-                curses.init_pair(idx, fg, bg)
-            except curses.error:
-                pass
+    def _install_theme(self) -> None:
+        """Instala el tema de colores (roles → pares curses) desde la config."""
+        if curses.has_colors():
+            curses.start_color()
+            curses.use_default_colors()
+        self._pairs = T.init_pairs(T.resolve_palette(self.st.cfg))
 
     def _init_windows(self) -> None:
         h, w = self.scr.getmaxyx()
         self.h_h, self.h_w = h, w
-        # Layout: header 1, controls 1, body (resto - footer 2), footer 2
+        # Layout: header 1, controls 1, separador 1, body (resto - footer 2),
+        # footer 2
         self.header = curses.newwin(1, w, 0, 0)
         self.controls = curses.newwin(1, w, 1, 0)
-        body_top = 2
+        self.separator = curses.newwin(1, w, 2, 0)
+        body_top = 3
         self.footer_h = 2
         body_h = h - body_top - self.footer_h
         if body_h < 1:
@@ -444,12 +427,18 @@ class App:
         return False
 
     # ---------- config ----------
+    def _preview_theme(self) -> None:
+        """Repinta la dashboard con el tema actual de la config (preview)."""
+        self._install_theme()
+        self.render()
+
     def _open_config(self) -> None:
         st = self.st
-        res = modals.global_config(self.scr, st)
+        res = modals.global_config(self.scr, st, preview_theme=self._preview_theme)
         if res == "save":
             st.cfg["radius"] = st.radius
             self._persist()
+            self._install_theme()  # puede haber cambiado el tema
             if not self.st.client or self.st.client.base_url != st.base_url:
                 self._rebuild_client()
             else:
@@ -497,6 +486,7 @@ class App:
                 "radius": st.radius,
                 "active_location_id": st.active_location_id,
                 "weather_view": st.weather_view,
+                "tema": st.tema,
             }
         )
 
@@ -526,7 +516,7 @@ class App:
     def _resize(self) -> None:
         """Rebuild windows tras un resize de terminal (evita artefactos)."""
         self._init_windows()
-        for w in (self.header, self.controls, self.body, self.left, self.right, self.footer):
+        for w in (self.header, self.controls, self.separator, self.body, self.left, self.right, self.footer):
             w.touchwin()
 
     def _tick(self) -> None:
@@ -544,20 +534,23 @@ class App:
 
     def render(self) -> None:
         st = self.st
+        pairs = self._pairs
         focus = lambda s: self.section == s
-        P.draw_header(self.header, st)
-        P.draw_controls(self.controls, st)
+        P.draw_header(self.header, st, pairs)
+        P.draw_controls(self.controls, st, pairs, self.cursor, focus("controls"))
+        P.draw_separator(self.separator, pairs)
         if focus("alerts") and self.detail_open:
-            P.draw_alerts_detail(self.left, st, self.detail_alert)
+            P.draw_alerts_detail(self.left, st, self.detail_alert, pairs)
         else:
-            P.draw_alerts_list(self.left, st, self.cursor, focus("alerts"))
-        P.draw_weather(self.right, st, self.cursor, focus("weather"))
-        P.draw_footer(self.footer, st, self.cursor, focus("footer"))
+            P.draw_alerts_list(self.left, st, self.cursor, focus("alerts"), pairs)
+        P.draw_weather(self.right, st, self.cursor, focus("weather"), pairs)
+        P.draw_footer(self.footer, st, self.cursor, focus("footer"), pairs)
         # countdown de próxima recarga en el footer
         self._draw_countdown()
-        P.draw_toast(st, self.scr)
+        P.draw_toast(st, self.scr, pairs)
         self.header.refresh()
         self.controls.refresh()
+        self.separator.refresh()
         self.body.refresh()
         self.left.refresh()
         self.right.refresh()
@@ -576,7 +569,7 @@ class App:
         cd = f"{int(remaining//60):02d}:{int(remaining%60):02d}"
         txt = f" {clock} · próxima recarga {cd}"
         try:
-            self.footer.addstr(min(1, h - 1), 0, F.truncate(txt, w - 22), curses.color_pair(P.C_FOOTER))
+            self.footer.addstr(min(1, h - 1), 0, F.truncate(txt, w - 22), self._pairs["footer"])
         except curses.error:
             pass
 

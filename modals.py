@@ -11,6 +11,7 @@ import curses
 from typing import Any, Callable
 
 from . import format as F
+from . import theme as T
 from . import update as U
 from .state import State
 
@@ -18,6 +19,15 @@ from .state import State
 BACK = "back"          # solo cerrar y volver
 SYNCED = "synced"      # se ejecutó una sync/refresh (recargar config)
 DELETED = "deleted"    # se eliminó una ubicación
+
+T_THEME_LABELS = {
+    "clasico": "clásico",
+    "mono": "monocromático",
+    "calido": "cálido",
+    "alto_contraste": "alto contraste",
+    "flatline": "flatline",
+    "custom": "custom (config.json)",
+}
 
 
 def _box(scr: Any, y: int, x: int, h: int, w: int, title: str) -> Any:
@@ -474,28 +484,43 @@ def source_config(scr: Any, st: State, api: Any, name: str) -> Any:
             return None
 
 
-def global_config(scr: Any, st: State) -> str | None:
+def global_config(
+    scr: Any,
+    st: State,
+    preview_theme: Callable[[], None] | None = None,
+) -> str | None:
     """Modal dev-friendly de configuración global: URL base, radio, vista de
-    clima y acción de comprobar/actualizar el propio TUI."""
+    clima, tema y acción de comprobar/actualizar el propio TUI.
+
+    ``preview_theme`` repinta la dashboard con el tema recién elegido (para
+    poder verlo en vivo detrás del modal); si es None no hay preview.
+    """
     h, w = scr.getmaxyx()
     box_w = min(w - 6, 56)
-    box_h = 11
+    box_h = 12
     by = max(0, (h - box_h) // 2)
     bx = max(0, (w - box_w) // 2)
     win = _box(scr, by, bx, box_h, box_w, " Configuración ")
     cursor = 0
-    fields = ["base_url", "radius", "weather_view"]
+    fields = ["base_url", "radius", "weather_view", "tema"]
     changed = False
     version = U.current_version()
     rows = [
         ("URL base", st.base_url),
         ("Radio (km)", str(st.radius)),
         ("Vista clima", st.weather_view),
+        ("Tema", T_THEME_LABELS.get(st.tema, st.tema)),
         ("Guardar y salir", ""),
         ("Comprobar actualización", version),
     ]
 
     def draw() -> None:
+        # limpiar interior (evita texto fantasma al cambiar valores)
+        for j in range(1, box_h - 1):
+            try:
+                win.addstr(j, 1, " " * (box_w - 2), curses.A_NORMAL)
+            except curses.error:
+                pass
         for i, (label, val) in enumerate(rows):
             if i == 0:
                 val = st.base_url
@@ -503,7 +528,9 @@ def global_config(scr: Any, st: State) -> str | None:
                 val = str(st.radius)
             elif i == 2:
                 val = st.weather_view
-            elif i == 4:
+            elif i == 3:
+                val = T_THEME_LABELS.get(st.tema, st.tema)
+            elif i == 5:
                 val = U.current_version()
             attr = curses.A_REVERSE if i == cursor else curses.A_NORMAL
             try:
@@ -545,10 +572,19 @@ def global_config(scr: Any, st: State) -> str | None:
                 st.weather_view = st.cfg["weather_view"]
                 changed = True
             elif cursor == 3:
+                # ciclar tema; el preview repinta la dashboard detrás del modal
+                names = T.THEME_NAMES
+                idx = names.index(st.tema) if st.tema in names else 0
+                st.tema = names[(idx + 1) % len(names)]
+                st.cfg["tema"] = st.tema
+                changed = True
+                if preview_theme is not None:
+                    preview_theme()
+            elif cursor == 4:
                 if changed:
                     return "save"
                 return None
-            elif cursor == 4:
+            elif cursor == 5:
                 # acción: comprobar / aplicar actualización (la maneja App en
                 # un thread; con éxito relanza la TUI)
                 return "update"
