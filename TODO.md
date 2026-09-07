@@ -24,8 +24,6 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~filtro por tipo de evento~~ (hecho en v0.19)
 
 ### Media prioridad
-- [ ] indicador de conexión — renderizar State.connected en el header o footer
-      como banner sutil (ej. "[sin server]" o icono) cuando connected=False.
 - [ ] awareness de collector pausado — consumir un endpoint de estado del
       collector y mostrar aviso en el footer si está en pausa.
 - [ ] README: corregir dependencias (quitar sqlite3), documentar
@@ -38,6 +36,9 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~tests de integración E2E~~ (omitido: E2E manual OK)
 
 ## Done
+- [x] v0.21 feat: indicador de conexión — draw_header muestra "[SIN SERVER]"
+      en rojo/negrita junto a la URL cuando State.connected es False (falla
+      refresh_config por ApiError); normal queda URL dim. Verificado en tmux.
 - [x] v0.20 refactor: limpieza de código muerto — se eliminan TYPE_COLOR y
       wmo_desc() (format.py), Client.health() y Client.alert() (api.py),
       el global last_request_at y su import time (api.py, se seteaba sin

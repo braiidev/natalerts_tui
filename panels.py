@@ -388,6 +388,11 @@ def draw_footer(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str, 
     # elemento bajo el cursor destacado igual que en el resto de la app.
     y = 0
     x = 0
+    # Aviso de recolector pausado: banner destacado al inicio de la tira.
+    if not cfg.get("collecting", True) or cfg.get("paused"):
+        tag = "▶ recolector PAUSADO"
+        _put(win, y, x, tag, pairs["error"] | curses.A_BOLD)
+        x += len(tag)
     for i, name in enumerate(names):
         s = sources[name]
         label = F.SOURCE_LABELS.get(name, name)

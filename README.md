@@ -135,6 +135,8 @@ Persistencia propia del TUI (no choca con la web ni con la DB del server):
 - `tema` se cambia desde el modal Configuración (ver arriba) o editando el archivo.
 - Cuando la API no responde, el header muestra `[SIN SERVER]` en rojo junto a
   la URL (indicador de conexión).
+- Cuando el recolector está pausado, el footer muestra `▶ recolector PAUSADO`
+  en rojo/negrita al inicio de la tira de fuentes.
 
 ## Consumo de API
 
