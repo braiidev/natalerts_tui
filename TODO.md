@@ -9,19 +9,21 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - Formato de commit: `v0.N <tipo>: <descripción>` en español.
 
 ## Doing
-- [ ] v0.8 chore: limpieza final, docs de uso y atajos, verificación manual E2E
-      contra el server real.
+- (vacío)
 
 ## Next
-- Fixes pendientes detectados en la verificación manual (v0.8):
-  - Clima: `<enter>` en celda de la grilla no abre el detalle de celda
-    (`_open_weather_cell` inalcanzable: el cursor en clima queda clampeado a 0..2 y
-    Enter colisiona con los toggles de ubicación/vista).
-  - Artefactos de redibujo tras abrir/cerrar algunos modales (chars residuales en
-    filas compartidas) — reproducible al abrir/cerrar `source_config` tras resizes.
-  - Toast persistente: no expira y puede tapar el estado del footer.
+- v0.11 chore: limpieza final, docs de uso y atajos, verificación manual E2E
+      contra el server real.
 
 ## Done
+- [x] v0.8 fix: clima — cursor separado en filas interactivas (ubicación/ver) +
+      celdas de grilla; `<enter>` abre el detalle de la celda (antes la tecla
+      colisionaba con los toggles de ubicación/vista).
+- [x] v0.9 fix: toast con expiración — `State.set_toast()` guarda timestamp
+      (TTL 4s) y `draw_toast` lo autolimpia; todos los emisores usan `set_toast`.
+- [x] v0.10 fix: artefactos de redibujo — `erase()` al inicio de cada draw de
+      panel + recrear ventanas en `KEY_RESIZE`; elimina restos tipo "Climaa"
+      tras resizes y cierre de modales.
 - [x] v0.1 feat: esqueleto completo del TUI de una sola sesión — layout
       Header/Controls/Alertas/Clima/Footer con `<tab>` entre secciones, dispatch de
       teclas por contexto, resalte de sección activa y layout con resize.
@@ -40,8 +42,6 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
       recargar, cerrar); botón [Config] y [Sync All] persistidos.
 - [x] v0.7 feat: recarga automática — alertas 60s, clima 300s, config 300s con
       countdown de próxima recarga en el footer.
-
-## Done
 - [x] v0.0 docs: subproyecto TUI creado con git init propio en `tui/` (ignorado por
       el repo padre como subproyecto independiente); documentación del milestone
       (README + TODO del TUI) con la especificación completa de la interfaz,
