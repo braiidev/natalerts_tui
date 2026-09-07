@@ -37,7 +37,8 @@ Diseño acordado — 3 niveles de layout adaptativo (se decide en render vía ge
 
 Constantes: `MIN_H=6`, `MIN_W=26`, `COMPACT_H=15`.
 
-- [ ] v0.26: modo compacto + banner + README (al final del milestone)
+- [x] v0.26: modo compacto + banner + README (dividido en v0.26a-e:
+      infra+banner, controles tab, body 1 columna+alertas, clima 3 filas, docs)
   - Banner de mínimo: solo "TERMINAL DEMASIADO PEQUEÑA · Mínimo 26×6 · Actual WxH"
     (sin hint). Loop vivo para KEY_RESIZE → sale solo al agrandar.
   - Compacto — body = 1 columna (derwin a lo ancho, no split 50/50). Cada
