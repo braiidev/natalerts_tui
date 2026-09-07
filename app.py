@@ -83,6 +83,8 @@ class App:
         self.left = self.body.derwin(body_h, mid, 0, 0)
         right_w = w - mid
         self.right = self.body.derwin(body_h, right_w, 0, mid)
+        # Body a ancho completo (modo compacto): alertas + clima apilados.
+        self.span = self.body.derwin(body_h, w, 0, 0)
 
     # ---------- refrescos de datos ----------
     def _client(self) -> Client:
@@ -553,6 +555,15 @@ class App:
         # countdown de próxima recarga en el footer
         self._draw_countdown()
         P.draw_toast(st, self.toast_win, pairs)
+        if compact:
+            self._render_compact(st, pairs, focus)
+            self.header.refresh()
+            self.controls.refresh()
+            self.separator.refresh()
+            self.span.refresh()
+            self.footer.refresh()
+            self.toast_win.refresh()
+            return
         self.header.refresh()
         self.controls.refresh()
         self.separator.refresh()
@@ -563,6 +574,21 @@ class App:
         # el toast va por su propia ventana: se refresca al final para que
         # siempre termine pintado (sin alternancia con el body).
         self.toast_win.refresh()
+
+    def _render_compact(self, st: State, pairs: dict[str, int], focus) -> None:
+        """Modo compacto: body 1 columna — alertas arriba, clima abajo."""
+        bh, bw = self.span.getmaxyx()
+        a_h = min(3, bh)
+        w_h = max(0, bh - a_h)
+        alerts_win = self.span.derwin(a_h, bw, 0, 0)
+        weather_win = self.span.derwin(w_h, bw, a_h, 0)
+        if focus("alerts") and self.detail_open:
+            P.draw_alerts_detail(alerts_win, st, self.detail_alert, pairs)
+        else:
+            P.draw_alerts_list(alerts_win, st, self.cursor, focus("alerts"), pairs)
+        P.draw_weather(weather_win, st, self.cursor, focus("weather"), pairs)
+        alerts_win.refresh()
+        weather_win.refresh()
 
     def _render_minimal(self, h: int, w: int, pairs: dict[str, int]) -> None:
         """Modo terminal muy pequeña: banner con el mínimo requerido y las
