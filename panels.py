@@ -272,6 +272,67 @@ def draw_weather(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str,
         y = _draw_daily_grid(win, st, cell_cursor, focus, pairs, y, w)
 
 
+def draw_weather_compact(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str, int]) -> None:
+    """Clima en modo compacto: 3 filas (actual, tabs, resultado del tab)."""
+    h, w = win.getmaxyx()
+    if h <= 0:
+        return
+    win.erase()
+    attr_title = pairs["accent"] if focus else pairs["text"]
+    head = " ▌Clima" if focus else " Clima"
+    _put(win, 0, 0, head, attr_title | curses.A_BOLD)
+    _put(win, 1, 0, "─" * w, pairs["divider"])
+
+    wd = st.weather
+    if st.error_weather:
+        _put(win, 3, 1, f"Error: {st.error_weather}", pairs["error"])
+        return
+    if not wd:
+        _put(win, 3, 1, "Cargando clima...", pairs["text"])
+        return
+
+    loc = st.active_location()
+    loc_name = loc["name"] if loc else (st.config.get("zone", {}).get("name") or "Zona")
+    temp = wd.get("temperature_c")
+    desc = wd.get("weather_description") or "—"
+    wind = wd.get("windspeed_kmh")
+    wind_txt = f"Viento {wind} km/h" if wind is not None else ""
+    if wd.get("winddirection") is not None:
+        wind_txt += f" {F.compass(wd['winddirection'])}"
+    tz = (wd.get("timezone") or "Open-Meteo").split("/")[-1].replace("_", " ")
+    icon = F.wmo_icon(wd.get("weathercode"))
+
+    # Fila 0: clima actual + ciudad, truncado a una línea.
+    line0 = f" {icon} {temp}°C {desc} · {wind_txt} · {loc_name} · {tz}"
+    row0_attr = pairs["selected"] if focus and cursor == 0 else pairs["text"]
+    _put(win, 2, 1, F.truncate(line0, w - 2), row0_attr | curses.A_BOLD)
+
+    # Fila 1: tabs navegables [ubicación] [ver] [grilla].
+    view_txt = "horario" if st.weather_view == "hourly" else "semanal"
+    tabs = [
+        ("ubicación ▲/▼", 0),
+        (f"ver:{view_txt}", 1),
+        ("grilla", 2),
+    ]
+    t_line = ""
+    for label, ti in tabs:
+        if focus and cursor == ti:
+            t_line += f"▶{label}◀  "
+        else:
+            t_line += f" {label}  "
+    _put(win, 3, 1, F.truncate(t_line, w - 2), pairs["text"])
+
+    # Fila 2: resultado del tab activo (la celda/modal).
+    cell = st.weather_cell if focus and cursor == 2 else -1
+    if cursor == 2 and st.weather_view == "hourly":
+        _draw_hour_grid(win, st, cell, focus, pairs, 4, w)
+    elif cursor == 2 and st.weather_view == "daily":
+        _draw_daily_grid(win, st, cell, focus, pairs, 4, w)
+    else:
+        _put(win, 4, 1, " Enter abre la hora/día  ·  + añadir ubicación",
+             pairs["text_dim"])
+
+
 def _draw_hour_grid(win: Any, st: State, cell: int, focus: bool, pairs: dict[str, int], y0: int, w: int) -> int:
     hourly = (st.weather or {}).get("hourly") or {}
     times = hourly.get("time") or []

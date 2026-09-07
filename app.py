@@ -578,15 +578,17 @@ class App:
     def _render_compact(self, st: State, pairs: dict[str, int], focus) -> None:
         """Modo compacto: body 1 columna — alertas arriba, clima abajo."""
         bh, bw = self.span.getmaxyx()
-        a_h = min(3, bh)
-        w_h = max(0, bh - a_h)
-        alerts_win = self.span.derwin(a_h, bw, 0, 0)
-        weather_win = self.span.derwin(w_h, bw, a_h, 0)
+        w_h = min(5, max(0, bh))          # clima compacto necesita 5 filas
+        a_h = max(0, bh - w_h)            # el resto va a alertas (título+item)
+        if a_h < 3:                       # prioridad mínima a alertas
+            a_h = max(0, bh - 5)
+        alerts_win = self.span.derwin(max(1, a_h), bw, 0, 0)
+        weather_win = self.span.derwin(w_h, bw, max(0, a_h), 0)
         if focus("alerts") and self.detail_open:
             P.draw_alerts_detail(alerts_win, st, self.detail_alert, pairs)
         else:
             P.draw_alerts_list(alerts_win, st, self.cursor, focus("alerts"), pairs)
-        P.draw_weather(weather_win, st, self.cursor, focus("weather"), pairs)
+        P.draw_weather_compact(weather_win, st, self.cursor, focus("weather"), pairs)
         alerts_win.refresh()
         weather_win.refresh()
 
