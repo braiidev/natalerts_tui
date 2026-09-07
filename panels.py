@@ -46,6 +46,7 @@ def draw_header(win: Any, st: State) -> None:
     h, w = win.getmaxyx()
     if h <= 0:
         return
+    win.erase()
     _fill(win, curses.color_pair(C_HEADER))
     base = st.base_url.replace("http://", "").replace("https://", "")
     loc = st.active_location()
@@ -62,6 +63,7 @@ def draw_controls(win: Any, st: State) -> None:
     h, w = win.getmaxyx()
     if h <= 0:
         return
+    win.erase()
     _fill(win, curses.color_pair(C_CONTROLS))
     f = st.cfg
     provider = f["provider"]
@@ -96,6 +98,7 @@ def draw_alerts_list(win: Any, st: State, cursor: int, focus: bool) -> None:
     h, w = win.getmaxyx()
     if h <= 0:
         return
+    win.erase()
     attr_normal = curses.color_pair(C_ACTIVE if focus else C_NORMAL)
     attr_sel = curses.color_pair(C_SELECTED)
     # Header del card
@@ -147,6 +150,7 @@ def _alert_line(a: dict[str, Any]) -> str:
 
 def draw_alerts_detail(win: Any, st: State, a: dict[str, Any] | None) -> None:
     h, w = win.getmaxyx()
+    win.erase()
     _fill(win, curses.color_pair(C_CARD))
     if a is None:
         _put(win, 0, 0, " Alertas", curses.color_pair(C_ACTIVE) | curses.A_BOLD)
@@ -185,6 +189,7 @@ def draw_weather(win: Any, st: State, cursor: int, focus: bool) -> None:
     h, w = win.getmaxyx()
     if h <= 0:
         return
+    win.erase()
     attr_focus = curses.color_pair(C_ACTIVE if focus else C_NORMAL)
     attr_sel = curses.color_pair(C_SELECTED)
     head = " ▌Clima" if focus else " Clima"
@@ -333,6 +338,7 @@ def _arr(data: dict[str, Any], key: str, i: int) -> Any:
 
 def draw_footer(win: Any, st: State, cursor: int, focus: bool) -> None:
     h, w = win.getmaxyx()
+    win.erase()
     _fill(win, curses.color_pair(C_FOOTER))
     cfg = st.config
     sources = cfg.get("sources", {})

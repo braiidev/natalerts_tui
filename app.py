@@ -479,10 +479,19 @@ class App:
             self.render()
             curses.napms(100)
             key = self.scr.getch()
+            if key == curses.KEY_RESIZE:
+                self._resize()
+                continue
             if key != -1:
                 if self.handle_key(key):
                     break
             self._maybe_reload()
+
+    def _resize(self) -> None:
+        """Rebuild windows tras un resize de terminal (evita artefactos)."""
+        self._init_windows()
+        for w in (self.header, self.controls, self.body, self.left, self.right, self.footer):
+            w.touchwin()
 
     def _tick(self) -> None:
         pass
@@ -517,6 +526,8 @@ class App:
         self.left.refresh()
         self.right.refresh()
         self.footer.refresh()
+        # scr se refresca sin touchwin: solo pinta el toast (evita que pise los
+        # paneles con su virtual obsoleto).
         self.scr.refresh()
 
     def _draw_countdown(self) -> None:
