@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
+
+# TTL del toast de feedback (s)
+TOAST_TTL = 4.0
 
 
 class State:
@@ -34,7 +38,12 @@ class State:
 
         # Feedback
         self.toast: str | None = None
+        self.toast_at: float | None = None
         self.toast_color = 3  # amarillo
+
+    def set_toast(self, msg: str) -> None:
+        self.toast = msg
+        self.toast_at = time.monotonic()
 
     # ---- Accesos de conveniencia ----
     @property

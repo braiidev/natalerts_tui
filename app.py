@@ -435,9 +435,9 @@ class App:
             elif self.cursor == len(sources) + 1:
                 try:
                     self._client().sync_all()
-                    st.toast = "Sincronizando todas las fuentes…"
+                    st.set_toast("Sincronizando todas las fuentes…")
                 except ApiError as e:
-                    st.toast = f"Error: {e}"
+                    st.set_toast(f"Error: {e}")
                 self.refresh_config()
         return False
 

@@ -7,10 +7,11 @@ manejan entrada ni estado mutante: eso vive en App.
 from __future__ import annotations
 
 import curses
+import time
 from typing import Any
 
 from . import format as F
-from .state import State
+from .state import TOAST_TTL, State
 
 # IDs de color registrados en App.init_colors
 C_HEADER = 1
@@ -362,6 +363,11 @@ def draw_footer(win: Any, st: State, cursor: int, focus: bool) -> None:
 
 def draw_toast(st: State, win: Any) -> None:
     if not st.toast:
+        return
+    # expiración del toast: se limpia solo tras TTL
+    if st.toast_at is not None and time.monotonic() - st.toast_at > TOAST_TTL:
+        st.toast = None
+        st.toast_at = None
         return
     h, w = win.getmaxyx()
     msg = F.truncate(st.toast, w - 6)

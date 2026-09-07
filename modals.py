@@ -311,7 +311,7 @@ def manage_locations(scr: Any, st: State, api: Any) -> Any:
                     api.set_default_location(loc["id"])
                     st.locations = api.locations()
                 except Exception as e:
-                    st.toast = str(e)
+                    st.set_toast(str(e))
                 refresh_list()
             elif key in (ord("d"), ord("D")) and st.locations:
                 loc = st.locations[cursor]
@@ -321,7 +321,7 @@ def manage_locations(scr: Any, st: State, api: Any) -> Any:
                             api.delete_location(loc["id"])
                             st.locations = api.locations()
                         except Exception as e:
-                            st.toast = str(e)
+                            st.set_toast(str(e))
                         refresh_list()
             elif key in (ord("q"), 27, curses.KEY_LEFT):
                 return None
@@ -330,7 +330,7 @@ def manage_locations(scr: Any, st: State, api: Any) -> Any:
                 name = buf.strip()
                 if name:
                     # añade con la ubicación activa o zona actual como lat/lon (luego se busca)
-                    st.toast = "Buscando coordenadas... usa 's' para geocodificar"
+                    st.set_toast("Buscando coordenadas... usa 's' para geocodificar")
                     mode = "list"
                     # mantener simple: los guardamos tras búsqueda
                     st._pending_name = name
@@ -350,7 +350,7 @@ def manage_locations(scr: Any, st: State, api: Any) -> Any:
                     try:
                         results = api.geocode(buf.strip(), 6)
                     except Exception as e:
-                        st.toast = str(e)
+                        st.set_toast(str(e))
                         results = []
                 else:
                     results = []
@@ -365,9 +365,9 @@ def manage_locations(scr: Any, st: State, api: Any) -> Any:
                     try:
                         api.create_location(name, r["lat"], r["lon"], st.radius)
                         st.locations = api.locations()
-                        st.toast = f"Ubicación añadida: {name}"
+                        st.set_toast(f"Ubicación añadida: {name}")
                     except Exception as e:
-                        st.toast = str(e)
+                        st.set_toast(str(e))
                     mode = "list"
                     buf = ""
                     results = []
@@ -445,9 +445,9 @@ def source_config(scr: Any, st: State, api: Any, name: str) -> Any:
                 mins = intervals[iv_sel]
                 try:
                     api.source_interval(name, mins)
-                    st.toast = f"Intervalo {name} → {mins} min"
+                    st.set_toast(f"Intervalo {name} → {mins} min")
                 except Exception as e:
-                    st.toast = str(e)
+                    st.set_toast(str(e))
                 return SYNCED
         else:
             if key in (curses.KEY_UP, ord("k")):
@@ -456,16 +456,16 @@ def source_config(scr: Any, st: State, api: Any, name: str) -> Any:
                 if sel == 1:
                     try:
                         api.source_sync(name)
-                        st.toast = f"{F.SOURCE_LABELS.get(name, name)} sincronizada"
+                        st.set_toast(f"{F.SOURCE_LABELS.get(name, name)} sincronizada")
                     except Exception as e:
-                        st.toast = str(e)
+                        st.set_toast(str(e))
                     return SYNCED
                 elif sel == 2:
                     try:
                         api.source_refresh(name)
-                        st.toast = f"{F.SOURCE_LABELS.get(name, name)} recargada"
+                        st.set_toast(f"{F.SOURCE_LABELS.get(name, name)} recargada")
                     except Exception as e:
-                        st.toast = str(e)
+                        st.set_toast(str(e))
                     return SYNCED
                 else:  # cerrar
                     return None
