@@ -15,6 +15,11 @@ from .state import State
 # Secciones navegables con <tab>
 SECTIONS = ["controls", "alerts", "weather", "footer"]
 
+# Intervalos de auto-refresco (s)
+RELOAD_ALERTS = 60
+RELOAD_WEATHER = 300
+RELOAD_CONFIG = 300
+
 # Intervalos de fuente válidos (para el modal de fuente)
 SOURCE_INTERVALS = {
     "usgs": [1, 2, 3, 4, 5, 10, 15, 30, 60],
@@ -33,6 +38,10 @@ class App:
         self.cursor = 0  # cursor genérico por sección (lista/item)
         self.detail_open = False
         self.detail_alert: dict[str, Any] | None = None
+        self.start = time.monotonic()
+        self._last_alerts = 0.0
+        self._last_weather = 0.0
+        self._last_config = 0.0
         self.busy = False
         self._init_colors()
         self._init_windows()
@@ -95,12 +104,16 @@ class App:
 
     def _rebuild_client(self) -> None:
         self.st.client = Client(self.st.base_url)
+        self._last_alerts = 0.0
+        self._last_weather = 0.0
+        self._last_config = 0.0
         self.refresh_config()
         self.refresh_locations()
         self.refresh_alerts()
         self.refresh_weather()
 
     def refresh_alerts(self) -> None:
+        self._last_alerts = time.monotonic()
         st = self.st
         try:
             loc = st.active_location()
@@ -136,6 +149,7 @@ class App:
             st.error_alerts = str(e)
 
     def refresh_weather(self, *_a: Any) -> None:
+        self._last_weather = time.monotonic()
         st = self.st
         try:
             loc = st.active_location()
@@ -149,6 +163,7 @@ class App:
             st.error_weather = str(e)
 
     def refresh_config(self, *_a: Any) -> None:
+        self._last_config = time.monotonic()
         st = self.st
         try:
             st.config = self._client().config()
@@ -457,9 +472,20 @@ class App:
             if key != -1:
                 if self.handle_key(key):
                     break
+            self._maybe_reload()
 
     def _tick(self) -> None:
         pass
+
+    def _maybe_reload(self) -> None:
+        now = time.monotonic()
+        if now - self._last_alerts >= RELOAD_ALERTS:
+            self.refresh_alerts()
+        if now - self._last_weather >= RELOAD_WEATHER:
+            self.refresh_weather()
+        if now - self._last_config >= RELOAD_CONFIG:
+            self.refresh_config()
+            self.refresh_locations()
 
     def render(self) -> None:
         st = self.st
@@ -472,6 +498,9 @@ class App:
             P.draw_alerts_list(self.left, st, self.cursor, focus("alerts"))
         P.draw_weather(self.right, st, self.cursor, focus("weather"))
         P.draw_footer(self.footer, st, self.cursor, focus("footer"))
+        # countdown de próxima recarga en el footer
+        self._draw_countdown()
+        P.draw_toast(st, self.scr)
         self.header.refresh()
         self.controls.refresh()
         self.body.refresh()
@@ -479,6 +508,21 @@ class App:
         self.right.refresh()
         self.footer.refresh()
         self.scr.refresh()
+
+    def _draw_countdown(self) -> None:
+        h, w = self.footer.getmaxyx()
+        # reloj hora local
+        now = time.localtime()
+        clock = time.strftime("%H:%M:%S", now)
+        # countdown hasta la próxima recarga de alertas
+        remaining = max(0, RELOAD_ALERTS - (time.monotonic() - self._last_alerts))
+        cd = f"{int(remaining//60):02d}:{int(remaining%60):02d}"
+        txt = f" {clock} · próxima recarga {cd}"
+        try:
+            self.footer.addstr(min(1, h - 1), 0, F.truncate(txt, w - 22), curses.color_pair(P.C_FOOTER))
+        except curses.error:
+            pass
+
 
 def _arr(data: dict[str, Any], key: str, i: int) -> Any:
     arr = data.get(key)
