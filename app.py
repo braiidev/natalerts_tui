@@ -13,7 +13,7 @@ from .api import ApiError, Client
 from .state import State
 
 # Secciones navegables con <tab>
-SECTIONS = ["alerts"]
+SECTIONS = ["controls", "alerts"]
 
 
 class App:
@@ -137,9 +137,55 @@ class App:
         # Raíz: q/esc salen, el resto se despacha por sección.
         if key in (ord("q"), 27):
             return True
+        if self.section == "controls":
+            return self._key_controls(key)
         if self.section == "alerts":
             return self._key_alerts(key)
         return False
+
+    # ---------- controles ----------
+    def _key_controls(self, key: int) -> bool:
+        st = self.st
+        if key in (curses.KEY_LEFT, ord("h")) or key in (curses.KEY_RIGHT, ord("l")):
+            # mover el "cursor de filtro" entre índices de filtros
+            self.cursor = (self.cursor + (1 if key in (curses.KEY_RIGHT, ord("l")) else -1)) % 6
+            return False
+        if key in (curses.KEY_ENTER, 10, 13, ord(" ")):
+            self._activate_filter(self.cursor)
+            return False
+        return False
+
+    def _activate_filter(self, idx: int) -> None:
+        st = self.st
+        if idx == 0:  # proveedor
+            opts = ["all", "usgs", "eonet", "gdacs"]
+            i = opts.index(st.provider) if st.provider in opts else 0
+            st.cfg["provider"] = opts[(i + 1) % len(opts)]
+        elif idx == 1:  # días
+            opts = [1, 7, 30, 90, 0]
+            i = opts.index(st.days) if st.days in opts else 1
+            st.cfg["days"] = opts[(i + 1) % len(opts)]
+        elif idx == 2:  # sort
+            opts = ["severity", "time", "distance"]
+            i = opts.index(st.sort) if st.sort in opts else 0
+            st.cfg["sort"] = opts[(i + 1) % len(opts)]
+        elif idx == 3:  # orden
+            st.cfg["order"] = "asc" if st.order == "desc" else "desc"
+        elif idx == 4:  # radio ±5
+            self.clamp_radius(delta=5)
+        elif idx == 5:  # scope
+            opts = ["world", "country", "zone"]
+            i = opts.index(st.scope) if st.scope in opts else 0
+            st.cfg["scope"] = opts[(i + 1) % len(opts)]
+        self.refresh_alerts()
+        self._persist()
+
+    def clamp_radius(self, delta: int) -> None:
+        new = self.st.radius + delta
+        new = max(0, min(1000, new))
+        self.st.cfg["radius"] = new
+        if not self.st.active_location():
+            self.refresh_alerts()
 
     # ---------- alertas ----------
     def _key_alerts(self, key: int) -> bool:
@@ -151,6 +197,22 @@ class App:
             if self.cursor > 0:
                 self.cursor -= 1
         return False
+
+    def _persist(self) -> None:
+        from . import config as C
+        st = self.st
+        C.save_config(
+            {
+                "base_url": st.cfg["base_url"],
+                "provider": st.provider,
+                "days": st.days,
+                "sort": st.sort,
+                "order": st.order,
+                "scope": st.scope,
+                "radius": st.radius,
+                "active_location_id": st.active_location_id,
+            }
+        )
 
     # ---------- loop ----------
     def run(self) -> None:
