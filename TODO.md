@@ -27,9 +27,35 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~README (sqlite3, NATALERTS_TUI_URL, flujo ubicación)~~ (hecho en v0.23)
 
 ### Baja prioridad
-- [ ] box_h=12 dinámico en global_config — calcular alto del modal según
-      número de filas para que no corte en terminales chicas.
-- [ ] eliminar _tick() (no-op) si no se usa como hook futuro.
+Diseño acordado — 3 niveles de layout adaptativo (se decide en render vía getmaxyx):
+
+| Alto / Ancho | Modo |
+|---|---|
+| h < 6 ó w < 26 | Banner de mínimo (ocupa el complemento; queda claro) |
+| 6 ≤ h < 15 | Compacto: 1 columna, 1 fila por sección, navegable |
+| h ≥ 15 | Normal (layout actual, 2 columnas 50/50) |
+
+Constantes: `MIN_H=6`, `MIN_W=26`, `COMPACT_H=15`.
+
+- [ ] v0.26: modo compacto + banner + README (al final del milestone)
+  - Banner de mínimo: solo "TERMINAL DEMASIADO PEQUEÑA · Mínimo 26×6 · Actual WxH"
+    (sin hint). Loop vivo para KEY_RESIZE → sale solo al agrandar.
+  - Compacto — body = 1 columna (derwin a lo ancho, no split 50/50). Cada
+    sección en 1 fila (a veces 2):
+    - Alertas: título `Alertas (N)` + 1 alerta visible bajo cursor; j/k recorre
+      (scroll de a 1, existe vía body_h); Enter abre modal de detalle.
+    - Clima 3 filas: (1) clima actual + ciudad truncado; (2) tabs
+      [ubicación▾][ver▾][grilla▾]; (3) resultado del tab (hora actual o Hoy,
+      1 celda), h/l mueve horas/días, Enter abre modal de celda. j/k mueve
+      entre las 3 filas (reutiliza WEATHER_ROWS).
+    - Controls: 1 tab cíclico a la vez + ←→ navega entre los 7 filtros y Enter
+      ciclea su valor; texto truncado. Reutiliza _key_controls/_activate_filter.
+  - Incluye: docs en TODO/README (sección "Tamaño de terminal").
+- [x] v0.25: eliminar _tick() no-op (app.py) — el timer real es _maybe_reload()
+      con napms(100), que ya responde a Tab/resize. Quitar _tick() y su llamada.
+- [x] v0.24: box_h dinámico en modales — global_config usa box_h=12 fijo y
+      newwin(h=12) crashea (curses.error) en terminal < 12 filas; reemplazar por
+      min(h-2,12) con piso; revisar demás _box() de altura fija.
 - [ ] ~~tests de integración E2E~~ (omitido: E2E manual OK)
 
 ## Done

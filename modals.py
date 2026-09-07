@@ -135,7 +135,7 @@ def _prompt(scr: Any, title: str, initial: str = "") -> str | None:
     """Prompt de una línea con el texto que se tipea."""
     h, w = scr.getmaxyx()
     box_w = min(w - 6, 60)
-    box_h = 5
+    box_h = min(h - 2, 5)
     by = max(0, (h - box_h) // 2)
     bx = max(0, (w - box_w) // 2)
     win = _box(scr, by, bx, box_h, box_w, f" {title} ")
@@ -182,7 +182,7 @@ def _prompt(scr: Any, title: str, initial: str = "") -> str | None:
 def _confirm(scr: Any, title: str, message: str) -> bool:
     h, w = scr.getmaxyx()
     box_w = min(w - 6, 60)
-    box_h = 6
+    box_h = min(h - 2, 6)
     by = max(0, (h - box_h) // 2)
     bx = max(0, (w - box_w) // 2)
     win = _box(scr, by, bx, box_h, box_w, f" {title} ")
@@ -401,7 +401,7 @@ def source_config(scr: Any, st: State, api: Any, name: str) -> Any:
     h, w = scr.getmaxyx()
     cfg = st.config.get("sources", {}).get(name, {})
     box_w = min(w - 6, 56)
-    box_h = 12
+    box_h = min(h - 2, 12)
     by = max(0, (h - box_h) // 2)
     bx = max(0, (w - box_w) // 2)
     win = _box(scr, by, bx, box_h, box_w, f" Configurar {F.SOURCE_LABELS.get(name, name)} ")
@@ -505,7 +505,7 @@ def global_config(
     """
     h, w = scr.getmaxyx()
     box_w = min(w - 6, 56)
-    box_h = 12
+    box_h = min(h - 2, 12)
     by = max(0, (h - box_h) // 2)
     bx = max(0, (w - box_w) // 2)
     win = _box(scr, by, bx, box_h, box_w, " Configuración ")
