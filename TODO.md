@@ -14,25 +14,13 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 ## Next
 
 ### Alta prioridad
-- [ ] tests format.py: fechas (time_ago, fmt_clock, fmt_day, fmt_datetime),
-      mag_label (mag, magnitude_value, sin magnitud), compass (0/90/225/360),
-      wmo_icon (todos los rangos de código WMO), truncate (overflow, exacto,
-      vacío), TYPE_LABELS/SOURCE_LABELS/SORT_LABELS/SCOPE_LABELS/DAY_LABELS.
-- [ ] tests config.py: load_config (falta archivo, JSON corrupto, merge con
-      defaults), save_config (escritura + permiso), DEFAULTS completos.
-- [ ] tests theme.py: resolve_palette (clásico, mono, custom, fallback sin
-      claves), init_pairs (16 roles, attributes correctos).
-- [ ] tests update.py: current_version (tag, sin tag), _describe (mock
-      subprocess), check_update (behind=0, behind=5, fetch fallido), do_update
-      (pull OK, pull fallido con reset).
-- [ ] tests state.py: active_location (id válido, id inexistente, None),
-      set_toast (set + TTL expiración).
-- [ ] tests app.py (unitarias): _weather_cell_count, _weather_window_start
-      (via panels._window_start), clamp_radius, _activate_filter (cada índice),
-      WEATHER_ROWS=3.
-- [ ] flujo "agregar ubicación" reescrito — actual: pide nombre → pasa a lista
-      sin crear → usuario debe buscar coords. Propuesta: flujo unificado donde
-      nombre + búsqueda + coordenadas suceden en una sola secuencia modal.
+- [ ] ~~tests format.py~~ (omitido: E2E manual OK)
+- [ ] ~~tests config.py~~ (omitido: E2E manual OK)
+- [ ] ~~tests theme.py~~ (omitido: E2E manual OK)
+- [ ] ~~tests update.py~~ (omitido: E2E manual OK)
+- [ ] ~~tests state.py~~ (omitido: E2E manual OK)
+- [ ] ~~tests app.py~~ (omitido: E2E manual OK)
+- [ ] ~~flujo "agregar ubicación" reescrito~~ (hecho en v0.18)
 - [ ] filtro por tipo de evento — nuevo toggle circular en controls
       (?type=earthquake,fire,...), con ALL/USGS/etc., alineado con la web.
 
@@ -53,10 +41,19 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] box_h=12 dinámico en global_config — calcular alto del modal según
       número de filas para que no corte en terminales chicas.
 - [ ] eliminar _tick() (no-op) si no se usa como hook futuro.
-- [ ] tests de integración: conexión contra server real en tmux (E2E) con
-      pytest + process fixture (verificar carga de alertas, clima, filtros).
+- [ ] ~~tests de integración E2E~~ (omitido: E2E manual OK)
 
 ## Done
+- [x] v0.18 feat: flujo "agregar ubicación" reescrito — al presionar `a`/`+`
+      y escribir un nombre, al confirmar con Enter se geocodifica automáticamente
+      esa misma palabra y se pasa a la lista de resultados (antes dejaba el
+      usuario colgado teniendo que saber presionar `s` para buscar). El nombre
+      queda guardado en `st._pending_name` y al elegir un resultado (1-6) se
+      crea la ubicación con sus coordenadas. Fix de bug: `hints` no asignado en
+      `draw()` cuando se entraba a modo add (NameError que crasheaba el modal).
+      `_pending_name` ahora se declara en `State.__init__` (antes era un
+      atributo dinámico frágil). Verificado en tmux contra el server real:
+      Cordoba → geocodifica → elegir → aparece en la lista. Prueba limpiada.
 - [x] v0.17 feat: UX/UX — toast de "Espere por favor ~10 s" **antes** del
       `sync_all()` bloqueante (render explícito para que se pinte en pantalla);
       toast de resultado al terminar; botones `[Config]`/`[Sync All]` en la

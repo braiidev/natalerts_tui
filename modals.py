@@ -241,6 +241,7 @@ def manage_locations(scr: Any, st: State, api: Any) -> Any:
         cursor = 0
 
     def draw() -> None:
+        nonlocal hints
         for yy in range(1, box_h - 1):
             try:
                 win.addstr(yy, 2, " " * (box_w - 4), curses.A_NORMAL)
@@ -340,14 +341,21 @@ def manage_locations(scr: Any, st: State, api: Any) -> Any:
             if key in (curses.KEY_ENTER, 10, 13):
                 name = buf.strip()
                 if name:
-                    # añade con la ubicación activa o zona actual como lat/lon (luego se busca)
-                    st.set_toast("Buscando coordenadas... usa 's' para geocodificar")
-                    mode = "list"
-                    # mantener simple: los guardamos tras búsqueda
+                    # flujo unificado: el nombre queda guardado y pasamos a
+                    # busca pidiendo geocodificar esa misma palabra.
                     st._pending_name = name
-                buf = ""
-                mode = "list"
-                hints = []
+                    buf = name
+                    try:
+                        results = api.geocode(buf, 6)
+                    except Exception as e:
+                        st.set_toast(str(e))
+                        results = []
+                    mode = "search"
+                    hints = ["1-6 elegir, Enter re-buscar, Esc cancelar"]
+                else:
+                    mode = "list"
+                    buf = ""
+                    hints = []
             elif key == 27:
                 mode = "list"
                 buf = ""
