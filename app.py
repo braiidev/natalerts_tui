@@ -22,6 +22,11 @@ RELOAD_ALERTS = 60
 RELOAD_WEATHER = 300
 RELOAD_CONFIG = 300
 
+# Umbrales de tamaño de terminal (modo adaptativo)
+MIN_H = 6
+MIN_W = 26
+COMPACT_H = 15
+
 
 class App:
     def __init__(self, scr: Any, state: State) -> None:
@@ -32,6 +37,7 @@ class App:
         self.cursor = 0  # cursor genérico por sección (lista/item)
         self.detail_open = False
         self.detail_alert: dict[str, Any] | None = None
+        self.mode = "normal"  # "normal" | "compact" | "minimal"
         self.start = time.monotonic()
         self._last_alerts = 0.0
         self._last_weather = 0.0
@@ -527,6 +533,12 @@ class App:
     def render(self) -> None:
         st = self.st
         pairs = self._pairs
+        h, w = self.scr.getmaxyx()
+        if h < MIN_H or w < MIN_W:
+            self.mode = "minimal"
+            self._render_minimal(h, w, pairs)
+            return
+        self.mode = "compact" if h < COMPACT_H else "normal"
         focus = lambda s: self.section == s
         P.draw_header(self.header, st, pairs)
         P.draw_controls(self.controls, st, pairs, self.cursor, focus("controls"))
@@ -550,6 +562,31 @@ class App:
         # el toast va por su propia ventana: se refresca al final para que
         # siempre termine pintado (sin alternancia con el body).
         self.toast_win.refresh()
+
+    def _render_minimal(self, h: int, w: int, pairs: dict[str, int]) -> None:
+        """Modo terminal muy pequeña: banner con el mínimo requerido y las
+        dimensiones actuales (sin otra información)."""
+        for win in (self.header, self.controls, self.separator,
+                    self.body, self.left, self.right, self.footer, self.toast_win):
+            try:
+                win.erase()
+                win.refresh()
+            except curses.error:
+                pass
+        lines = [
+            "TERMINAL DEMASIADO PEQUEÑA",
+            f"Mínimo: {MIN_W}x{MIN_H} · Actual: {w}x{h}",
+        ]
+        try:
+            self.scr.clear()
+            y = max(0, (h // 2) - 1)
+            for i, ln in enumerate(lines):
+                x = max(0, (w - len(ln)) // 2)
+                attr = pairs["error"] | curses.A_BOLD if i == 0 else pairs["text"]
+                self.scr.addstr(y + i, x, F.truncate(ln, w), attr)
+            self.scr.refresh()
+        except curses.error:
+            pass
 
     def _draw_countdown(self) -> None:
         h, w = self.footer.getmaxyx()
