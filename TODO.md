@@ -12,7 +12,49 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - (vacío)
 
 ## Next
-- (vacío)
+
+### Alta prioridad
+- [ ] tests format.py: fechas (time_ago, fmt_clock, fmt_day, fmt_datetime),
+      mag_label (mag, magnitude_value, sin magnitud), compass (0/90/225/360),
+      wmo_icon (todos los rangos de código WMO), truncate (overflow, exacto,
+      vacío), TYPE_LABELS/SOURCE_LABELS/SORT_LABELS/SCOPE_LABELS/DAY_LABELS.
+- [ ] tests config.py: load_config (falta archivo, JSON corrupto, merge con
+      defaults), save_config (escritura + permiso), DEFAULTS completos.
+- [ ] tests theme.py: resolve_palette (clásico, mono, custom, fallback sin
+      claves), init_pairs (16 roles, attributes correctos).
+- [ ] tests update.py: current_version (tag, sin tag), _describe (mock
+      subprocess), check_update (behind=0, behind=5, fetch fallido), do_update
+      (pull OK, pull fallido con reset).
+- [ ] tests state.py: active_location (id válido, id inexistente, None),
+      set_toast (set + TTL expiración).
+- [ ] tests app.py (unitarias): _weather_cell_count, _weather_window_start
+      (via panels._window_start), clamp_radius, _activate_filter (cada índice),
+      WEATHER_ROWS=3.
+- [ ] flujo "agregar ubicación" reescrito — actual: pide nombre → pasa a lista
+      sin crear → usuario debe buscar coords. Propuesta: flujo unificado donde
+      nombre + búsqueda + coordenadas suceden en una sola secuencia modal.
+- [ ] filtro por tipo de evento — nuevo toggle circular en controls
+      (?type=earthquake,fire,...), con ALL/USGS/etc., alineado con la web.
+
+### Media prioridad
+- [ ] limpieza código muerto — eliminar: TYPE_COLOR, wmo_desc(),
+      Client.health(), Client.alert(), SOURCE_INTERVALS (duplicado con
+      modals.py), last_request_at (global), toast_color, _arr() duplicado
+      (mantener solo en panels.py), SCOPE_OPTIONS/PROVIDER_OPTIONS/SORT_OPTIONS/
+      DAYS_OPTIONS en config.py (no usados), import locale en fmt_day.
+- [ ] indicador de conexión — renderizar State.connected en el header o footer
+      como banner sutil (ej. "[sin server]" o icono) cuando connected=False.
+- [ ] awareness de collector pausado — consumir un endpoint de estado del
+      collector y mostrar aviso en el footer si está en pausa.
+- [ ] README: corregir dependencias (quitar sqlite3), documentar
+      NATALERTS_TUI_URL, documentar flujo de agregar ubicación.
+
+### Baja prioridad
+- [ ] box_h=12 dinámico en global_config — calcular alto del modal según
+      número de filas para que no corte en terminales chicas.
+- [ ] eliminar _tick() (no-op) si no se usa como hook futuro.
+- [ ] tests de integración: conexión contra server real en tmux (E2E) con
+      pytest + process fixture (verificar carga de alertas, clima, filtros).
 
 ## Done
 - [x] v0.17 feat: UX/UX — toast de "Espere por favor ~10 s" **antes** del
