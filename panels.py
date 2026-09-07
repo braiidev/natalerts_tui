@@ -61,7 +61,7 @@ def draw_header(win: Any, st: State, pairs: dict[str, int]) -> None:
         _put(win, 0, max(0, w - len(right) - 1), right, pairs["header"] | curses.A_DIM)
 
 
-def draw_controls(win: Any, st: State, pairs: dict[str, int], cursor: int, focus: bool) -> None:
+def draw_controls(win: Any, st: State, pairs: dict[str, int], cursor: int, focus: bool, compact: bool = False) -> None:
     h, w = win.getmaxyx()
     if h <= 0:
         return
@@ -85,6 +85,13 @@ def draw_controls(win: Any, st: State, pairs: dict[str, int], cursor: int, focus
         f"[{F.EVENT_TYPE_LABELS.get(st.event_type, st.event_type)}▾]",
     ]
     y = 0
+    if compact:
+        # modo compacto: un solo tab cíclico, ←→ navega, enter ciclea su valor
+        idx = cursor % 7
+        attr = pairs["filter_active"] if focus else pairs["controls"]
+        seg = f"← {segs[idx]} →"
+        _put(win, y, 0, " " + F.truncate(seg, w - 1), attr)
+        return
     x = 0
     for i, seg in enumerate(segs):
         attr = pairs["controls"]

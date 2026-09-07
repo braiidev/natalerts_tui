@@ -540,8 +540,9 @@ class App:
             return
         self.mode = "compact" if h < COMPACT_H else "normal"
         focus = lambda s: self.section == s
+        compact = self.mode == "compact"
         P.draw_header(self.header, st, pairs)
-        P.draw_controls(self.controls, st, pairs, self.cursor, focus("controls"))
+        P.draw_controls(self.controls, st, pairs, self.cursor, focus("controls"), compact=compact)
         P.draw_separator(self.separator, pairs)
         if focus("alerts") and self.detail_open:
             P.draw_alerts_detail(self.left, st, self.detail_alert, pairs)
