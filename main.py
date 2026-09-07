@@ -2,6 +2,7 @@
 
 Uso:
     python3 tui/main.py
+    python3 tui/main.py --url http://192.168.1.42:8000
 
 Funciona tanto ejecutándolo como script directo (python3 tui/main.py) como
 módulo del paquete (python3 -m tui.main).
@@ -9,6 +10,7 @@ módulo del paquete (python3 -m tui.main).
 
 from __future__ import annotations
 
+import argparse
 import curses
 import sys
 import os
@@ -22,17 +24,39 @@ if __package__ in (None, ""):
     if _ROOT not in sys.path:
         sys.path.insert(0, _ROOT)
 
+from tui import config as C
 from tui.app import App
 from tui.state import State
 
 
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="natural-alerts-tui",
+        description="TUI curses que consume la API de Natural Alerts.",
+    )
+    parser.add_argument(
+        "--url",
+        default=None,
+        help="URL base de la API (default: config.json / http://192.168.1.42:8000)",
+    )
+    return parser.parse_args(argv)
+
+
 def main(argv: list[str] | None = None) -> int:
-    state = State({})
+    args = parse_args(argv)
+    cfg = C.load_config()
+    if args.url:
+        cfg["base_url"] = args.url.rstrip("/")
+    state = State(cfg)
+    if not state.base_url:
+        print("Error: falta base_url en config.json", file=sys.stderr)
+        return 1
     try:
         curses.wrapper(_run, state)
     except Exception as exc:  # curses puede lanzar diversas excepciones al salir
         print(f"Error TUI: {exc}", file=sys.stderr)
         return 1
+    C.save_config(state.cfg)
     return 0
 
 
