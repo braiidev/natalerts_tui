@@ -278,9 +278,16 @@ class App:
         return False
 
     # ---------- clima ----------
+    # El cursor de clima opera sobre filas interactivas:
+    #   0 = toggle de ubicación, 1 = toggle horario/semanal, 2..4 = celdas de la
+    #   grilla (cell_idx = cursor - 2).
+    WEATHER_ROWS = 5
+
+    def _weather_cell_cursor(self) -> int:
+        return self.cursor - 2 if self.cursor >= 2 else -1
+
     def _key_weather(self, key: int) -> bool:
         st = self.st
-        # En clima, cursor opera sobre la grilla (0..2) o sobre toggle ubicación
         if key in (curses.KEY_LEFT, ord("h")):
             if st.weather_view == "hourly":
                 st.hour_window = max(0, st.hour_window - 1)
@@ -292,22 +299,11 @@ class App:
             else:
                 st.daily_window += 1
         elif key in (curses.KEY_DOWN, ord("j")):
-            self.cursor = min(2, self.cursor + 1)
+            self.cursor = min(self.WEATHER_ROWS - 1, self.cursor + 1)
         elif key in (curses.KEY_UP, ord("k")):
             self.cursor = max(0, self.cursor - 1)
         elif key in (curses.KEY_ENTER, 10, 13, ord(" ")):
-            if self.cursor == 2:
-                # toggle horario/semanal
-                st.cfg["weather_view"] = "daily" if st.weather_view == "hourly" else "hourly"
-                st.weather_view = st.cfg["weather_view"]
-                self._persist()
-            elif self.cursor == 1:
-                # abrir modal de ubicaciones
-                modals.manage_locations(self.scr, st, self._client())
-                self._persist()
-                self.refresh_locations()
-                self.refresh_weather()
-            elif self.cursor == 0:
+            if self.cursor == 0:
                 # toggle entre ubicaciones
                 if st.locations:
                     locs = st.locations
@@ -322,15 +318,27 @@ class App:
                     st.cfg["active_location_id"] = nxt.get("id")
                     self._persist()
                     self.refresh_weather()
+            elif self.cursor == 1:
+                # toggle horario/semanal
+                st.cfg["weather_view"] = "daily" if st.weather_view == "hourly" else "hourly"
+                st.weather_view = st.cfg["weather_view"]
+                self._persist()
             else:
-                self._open_weather_cell()
+                # abrir modal de detalle de la celda seleccionada
+                self._open_weather_cell(self._weather_cell_cursor())
         elif key == ord("+"):
+            modals.manage_locations(self.scr, st, self._client())
+            self._persist()
+            self.refresh_locations()
+            self.refresh_weather()
+        elif key == ord("m"):
+            # accesible además el modal de ubicaciones
             modals.manage_locations(self.scr, st, self._client())
             self._persist()
             self.refresh_locations()
         return False
 
-    def _open_weather_cell(self) -> None:
+    def _open_weather_cell(self, cell_idx: int) -> None:
         st = self.st
         w = st.weather or {}
         if st.weather_view == "hourly":
@@ -341,7 +349,8 @@ class App:
             n = len(times)
             WINDOW = 3
             start = max(0, min(st.hour_window, max(0, n - WINDOW)))
-            i = start + self.cursor
+            cell_idx = max(0, min(cell_idx, WINDOW - 1))
+            i = min(start + cell_idx, len(times) - 1)
             cell = {
                 "t": times[i] if i < len(times) else None,
                 "temp": _arr(hourly, "temperature_2m", i),
@@ -376,7 +385,8 @@ class App:
             n = len(times)
             WINDOW = 3
             start = max(0, min(st.daily_window, max(0, n - WINDOW)))
-            i = start + self.cursor
+            cell_idx = max(0, min(cell_idx, WINDOW - 1))
+            i = min(start + cell_idx, len(times) - 1)
             cell = {
                 "t": times[i] if i < len(times) else None,
                 "code": _arr(daily, "weathercode", i),

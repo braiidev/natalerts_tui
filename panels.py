@@ -217,16 +217,24 @@ def draw_weather(win: Any, st: State, cursor: int, focus: bool) -> None:
     _put(win, y, 2, f"{tz} · actualizado {updated}", curses.color_pair(C_NORMAL)); y += 2
 
     # Toggle ubicación (+)
-    _put(win, y, 2, " ▲/▼ ubicación  [+] añadir", curses.color_pair(C_ACTIVE if focus else C_NORMAL)); y += 2
+    row_loc = (curses.color_pair(C_SELECTED) if focus and cursor == 0
+               else curses.color_pair(C_ACTIVE) if focus
+               else curses.color_pair(C_NORMAL))
+    _put(win, y, 2, " ▲/▼ ubicación  [+] añadir  [m] gestionar", row_loc); y += 2
 
     # Toggle horario/semanal
     view_txt = " [horario]" if st.weather_view == "hourly" else " [semanal]"
-    _put(win, y, 2, " Ver:" + view_txt, curses.color_pair(C_ACTIVE if focus else C_NORMAL)); y += 1
+    row_view = (curses.color_pair(C_SELECTED) if focus and cursor == 1
+                else curses.color_pair(C_ACTIVE) if focus
+                else curses.color_pair(C_NORMAL))
+    _put(win, y, 2, " Ver:" + view_txt, row_view); y += 1
 
+    # Celda seleccionada en la grilla: cursor 2..4 (cell_idx = cursor - 2).
+    cell_cursor = cursor - 2 if focus and cursor >= 2 else -1
     if st.weather_view == "hourly":
-        y = _draw_hour_grid(win, st, cursor, focus, y, w)
+        y = _draw_hour_grid(win, st, cell_cursor, focus, y, w)
     else:
-        y = _draw_daily_grid(win, st, cursor, focus, y, w)
+        y = _draw_daily_grid(win, st, cell_cursor, focus, y, w)
 
 
 def _draw_hour_grid(win: Any, st: State, cursor: int, focus: bool, y0: int, w: int) -> int:
