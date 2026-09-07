@@ -166,6 +166,17 @@ def source_link(a: dict[str, Any]) -> str | None:
     return a.get("source_url") or d.get("url") or d.get("link") or None
 
 
+def compass(deg: int | None) -> str:
+    """Dirección del viento a punto cardinal (0=N, 90=E, ...)."""
+    if deg is None:
+        return ""
+    dirs = [
+        "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+    ]
+    return dirs[int((float(deg) % 360.0) / 22.5) % 16]
+
+
 def truncate(s: str, width: int) -> str:
     """Recorta a `width` con elipsis, respetando ancho visible aprox."""
     if s is None:

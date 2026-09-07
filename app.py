@@ -77,6 +77,9 @@ class App:
             body_h = 1
         self.body = curses.newwin(body_h, w, body_top, 0)
         self.footer = curses.newwin(self.footer_h, w, body_top + body_h, 0)
+        # Ventana del toast: 1 fila sobre la última del body, refrescada SIEMPRE
+        # al final para que ningún panel le pise el contenido (fin del parpadeo).
+        self.toast_win = curses.newwin(1, w, body_top + body_h - 1, 0)
         # Split del body: 50 / 50
         mid = w // 2
         self.left = self.body.derwin(body_h, mid, 0, 0)
@@ -264,25 +267,28 @@ class App:
 
     # ---------- clima ----------
     # El cursor de clima opera sobre filas interactivas:
-    #   0 = toggle de ubicación, 1 = toggle horario/semanal, 2..4 = celdas de la
-    #   grilla (cell_idx = cursor - 2).
-    WEATHER_ROWS = 5
+    #   0 = toggle de ubicación, 1 = toggle horario/semanal, 2 = grilla.
+    # La celda seleccionada dentro de la grilla vive en st.weather_cell y se
+    # mueve con h/l (la ventana visible la sigue sola).
+    WEATHER_ROWS = 3
 
-    def _weather_cell_cursor(self) -> int:
-        return self.cursor - 2 if self.cursor >= 2 else -1
+    def _weather_cell_count(self) -> int:
+        st = self.st
+        w = st.weather or {}
+        if st.weather_view == "hourly":
+            return len((w.get("hourly") or {}).get("time") or [])
+        return len((w.get("daily") or {}).get("time") or [])
 
     def _key_weather(self, key: int) -> bool:
         st = self.st
         if key in (curses.KEY_LEFT, ord("h")):
-            if st.weather_view == "hourly":
-                st.hour_window = max(0, st.hour_window - 1)
-            else:
-                st.daily_window = max(0, st.daily_window - 1)
+            n = self._weather_cell_count()
+            if self.cursor == 2 and n:
+                st.weather_cell = max(0, st.weather_cell - 1)
         elif key in (curses.KEY_RIGHT, ord("l")):
-            if st.weather_view == "hourly":
-                st.hour_window += 1
-            else:
-                st.daily_window += 1
+            n = self._weather_cell_count()
+            if self.cursor == 2 and n:
+                st.weather_cell = min(n - 1, st.weather_cell + 1)
         elif key in (curses.KEY_DOWN, ord("j")):
             self.cursor = min(self.WEATHER_ROWS - 1, self.cursor + 1)
         elif key in (curses.KEY_UP, ord("k")):
@@ -307,35 +313,29 @@ class App:
                 # toggle horario/semanal
                 st.cfg["weather_view"] = "daily" if st.weather_view == "hourly" else "hourly"
                 st.weather_view = st.cfg["weather_view"]
+                st.weather_cell = 0
                 self._persist()
             else:
                 # abrir modal de detalle de la celda seleccionada
-                self._open_weather_cell(self._weather_cell_cursor())
+                self._open_weather_cell(st.weather_cell)
         elif key == ord("+"):
             modals.manage_locations(self.scr, st, self._client())
             self._persist()
             self.refresh_locations()
             self.refresh_weather()
-        elif key == ord("m"):
-            # accesible además el modal de ubicaciones
-            modals.manage_locations(self.scr, st, self._client())
-            self._persist()
-            self.refresh_locations()
         return False
 
     def _open_weather_cell(self, cell_idx: int) -> None:
         st = self.st
         w = st.weather or {}
+        if not w:
+            return
         if st.weather_view == "hourly":
             hourly = w.get("hourly") or {}
             times = hourly.get("time") or []
             if not times:
                 return
-            n = len(times)
-            WINDOW = 3
-            start = max(0, min(st.hour_window, max(0, n - WINDOW)))
-            cell_idx = max(0, min(cell_idx, WINDOW - 1))
-            i = min(start + cell_idx, len(times) - 1)
+            i = max(0, min(cell_idx, len(times) - 1))
             cell = {
                 "t": times[i] if i < len(times) else None,
                 "temp": _arr(hourly, "temperature_2m", i),
@@ -367,11 +367,7 @@ class App:
             times = daily.get("time") or []
             if not times:
                 return
-            n = len(times)
-            WINDOW = 3
-            start = max(0, min(st.daily_window, max(0, n - WINDOW)))
-            cell_idx = max(0, min(cell_idx, WINDOW - 1))
-            i = min(start + cell_idx, len(times) - 1)
+            i = max(0, min(cell_idx, len(times) - 1))
             cell = {
                 "t": times[i] if i < len(times) else None,
                 "code": _arr(daily, "weathercode", i),
@@ -418,11 +414,13 @@ class App:
             elif self.cursor == len(sources):
                 self._open_config()
             elif self.cursor == len(sources) + 1:
+                st.set_toast("Espere por favor ~10 s — sincronizando fuentes…")
+                self.render()
                 try:
                     self._client().sync_all()
-                    st.set_toast("Sincronizando todas las fuentes…")
+                    st.set_toast("Sincronización completada")
                 except ApiError as e:
-                    st.set_toast(f"Error: {e}")
+                    st.set_toast(f"Error en Sync All: {e}")
                 self.refresh_config()
         return False
 
@@ -516,7 +514,7 @@ class App:
     def _resize(self) -> None:
         """Rebuild windows tras un resize de terminal (evita artefactos)."""
         self._init_windows()
-        for w in (self.header, self.controls, self.separator, self.body, self.left, self.right, self.footer):
+        for w in (self.header, self.controls, self.separator, self.body, self.left, self.right, self.footer, self.toast_win):
             w.touchwin()
 
     def _tick(self) -> None:
@@ -547,7 +545,7 @@ class App:
         P.draw_footer(self.footer, st, self.cursor, focus("footer"), pairs)
         # countdown de próxima recarga en el footer
         self._draw_countdown()
-        P.draw_toast(st, self.scr, pairs)
+        P.draw_toast(st, self.toast_win, pairs)
         self.header.refresh()
         self.controls.refresh()
         self.separator.refresh()
@@ -555,9 +553,9 @@ class App:
         self.left.refresh()
         self.right.refresh()
         self.footer.refresh()
-        # scr se refresca sin touchwin: solo pinta el toast (evita que pise los
-        # paneles con su virtual obsoleto).
-        self.scr.refresh()
+        # el toast va por su propia ventana: se refresca al final para que
+        # siempre termine pintado (sin alternancia con el body).
+        self.toast_win.refresh()
 
     def _draw_countdown(self) -> None:
         h, w = self.footer.getmaxyx()

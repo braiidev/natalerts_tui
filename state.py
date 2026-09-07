@@ -29,8 +29,9 @@ class State:
         self.locations: list[dict[str, Any]] = []
         self.active_location_id: int | None = cfg.get("active_location_id")
         self.weather_view = cfg.get("weather_view", "hourly")
-        self.hour_window = 0
-        self.daily_window = 0
+        # Celda seleccionada en la grilla de clima (índice absoluto; la
+        # ventana visible la sigue automáticamente).
+        self.weather_cell = 0
         self.tema = cfg.get("tema", "clasico")
 
         # Fuentes / config

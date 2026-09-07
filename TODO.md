@@ -12,10 +12,22 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - (vacío)
 
 ## Next
-- (opcional, dev) `[Sync All]` bloquea la TUI ~10 s: el POST lanza la
-      colección en el server y espera; mover a un thread con toast "en curso".
+- (vacío)
 
 ## Done
+- [x] v0.17 feat: UX/UX — toast de "Espere por favor ~10 s" **antes** del
+      `sync_all()` bloqueante (render explícito para que se pinte en pantalla);
+      toast de resultado al terminar; botones `[Config]`/`[Sync All]` en la
+      tira de footer destacados con `▶` + `selected|BOLD` cuando el cursor los
+      alcanza (antes solo resaltaban las fuentes); ventana propia del toast
+      (`toast_win`), refrescada al final de cada frame → cero parpadeo con los
+      paneles; navegación de clima reescrita: cursor de filas (0=ubicación,
+      1=vista, 2=grilla) + `h`/`l` mueve la celda absoluta (la ventana la
+      sigue sola, centrando la celda); se eliminó `[m] gestionar` (redundante
+      con `+`); copy: dirección del viento ahora en punto cardinal (`N`/`NE`…)
+      en vez de grados crípticos; celdas de viento muestran `km/h` (antes
+      `3k`); timezone con `_` reemplazado por espacio; magnitud vacía muestra
+      `—` en la lista (antes quedaba la columna vacía).
 - [x] v0.16 chore: limpieza (código muerto: `severity_class` en format.py,
       `fields` en modals.py, `d` sin uso en panels.draw_alerts_detail) + docs
       de atajos de teclado en README (tabla por sección) + E2E manual contra

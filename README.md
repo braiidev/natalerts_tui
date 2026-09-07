@@ -51,7 +51,7 @@ nuevo.
     enter → modal detalle          toggle [horario/semanal] + grid
                                    celda → modal con detalle
   (Card Mapa omitida)
-[Footer (h=2)  x4[Evento <estado>] · hh:mm · countdown · [Sync All]]
+[Footer (h=2)  x4[Evento <estado>] · [Config] [Sync All]  /  hh:mm · countdown]
 ```
 
 ### Navegación
@@ -77,11 +77,11 @@ nuevo.
 | Controls | `Enter` / `Space` | Activar filtro (cicla opciones: proveedor, días, orden, radio, alcance) |
 | Alertas | `j`/`k`, `↓`/`↑` | Desplazarse por la lista |
 | Alertas | `Enter` / `Space` | Abrir detalle inline; `q`/`h`/`←`/`Esc` cierra |
-| Clima | `j`/`k` | Filas interactivas: ubicación / vista / celdas de la grilla |
+| Clima | `j`/`k` | Filas interactivas: ubicación / vista / grilla |
+| Clima | `h`/`l`, `←`/`→` | Mover la celda dentro de la grilla (la ventana la sigue sola) |
 | Clima | `Enter` / `Space` | Según fila: toggle de ubicación, vista `[horario/semanal]` o modal de la celda |
-| Clima | `h`/`l`, `←`/`→` | Mover la ventana de proyección (±1 hora / ±1 día) |
-| Clima | `+` / `m` | Añadir / gestionar ubicaciones |
-| Footer | `h`/`l`/`k`/`j` | Fuentes y botones (`[Config]`, `[Sync All]`) |
+| Clima | `+` | Añadir ubicación |
+| Footer | `h`/`l`/`k`/`j` | Fuentes y botones (`[Config]`, `[Sync All]`, resaltados bajo el cursor) |
 | Footer | `Enter` / `Space` | Modal de la fuente / Configuración / Sincronizar todo |
 | Ubicaciones | `a`/`+` añadir, `s`/`/` buscar, `p` principal, `d` borrar | Modal de gestión |
 
