@@ -24,8 +24,7 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~filtro por tipo de evento~~ (hecho en v0.19)
 
 ### Media prioridad
-- [ ] README: corregir dependencias (quitar sqlite3), documentar
-      NATALERTS_TUI_URL, documentar flujo de agregar ubicación.
+- [ ] ~~README (sqlite3, NATALERTS_TUI_URL, flujo ubicación)~~ (hecho en v0.23)
 
 ### Baja prioridad
 - [ ] box_h=12 dinámico en global_config — calcular alto del modal según
@@ -34,7 +33,11 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~tests de integración E2E~~ (omitido: E2E manual OK)
 
 ## Done
-- [x] v0.22 feat: aviso de recolector pausado — draw_footer muestra
+- [x] v0.23 docs: README — quita `sqlite3` de las dependencias (solo stdlib:
+      curses/urllib/json; sqlite3 es del server), documenta el override de
+      `base_url` por CLI `--url` y por la env `NATALERTS_TUI_URL`, y agrega la
+      subsección "Flujo agregar ubicación" (a/+ → nombre → Enter → geocodifica
+      → 1-6 eligen → se guarda como ubicación activa).
       "▶ recolector PAUSADO" en rojo/negrita al inicio de la tira de fuentes
       cuando st.config["collecting"] es False o ["paused"] True (GET
       /api/config). Verificado en tmux: normal sin banner, pausado aparece.
