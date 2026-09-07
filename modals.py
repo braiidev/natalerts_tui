@@ -502,7 +502,6 @@ def global_config(
     bx = max(0, (w - box_w) // 2)
     win = _box(scr, by, bx, box_h, box_w, " Configuración ")
     cursor = 0
-    fields = ["base_url", "radius", "weather_view", "tema"]
     changed = False
     version = U.current_version()
     rows = [

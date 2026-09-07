@@ -175,7 +175,6 @@ def draw_alerts_detail(win: Any, st: State, a: dict[str, Any] | None, pairs: dic
     _put(win, 0, 0, " ▌Detalle de alerta", pairs["accent"] | curses.A_BOLD)
     _put(win, 1, 0, "─" * w, pairs["divider"])
     y = 2
-    d = a.get("details") or {}
     typ = F.TYPE_LABELS.get(a.get("type"), a.get("type") or "?")
     _put(win, y, 2, f"Tipo:     {typ}", pairs["text"]); y += 1
     _put(win, y, 2, f"Fuente:   {F.SOURCE_LABELS.get(a.get('source'), a.get('source') or '')}", pairs["text"]); y += 1

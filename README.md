@@ -66,6 +66,25 @@ nuevo.
 - Modo prompt (escribir texto): solo `<esc>` (cancela) y `<enter>` (confirma)
   accionan; el resto de teclas imprimibles escriben.
 
+### Atajos de teclado
+
+| Sección | Tecla | Acción |
+|---------|-------|--------|
+| Raíz | `q` / `Esc` | Salir (en modal/detalle: volver atrás) |
+| Raíz | `Tab` | Ciclar sección activa (Controls → Alertas → Clima → Footer) |
+| Raíz | `u` / `U` | Configuración global (URL, radio, clima, tema, actualizar) |
+| Controls | `h`/`l`, `←`/`→` | Mover el cursor de filtro |
+| Controls | `Enter` / `Space` | Activar filtro (cicla opciones: proveedor, días, orden, radio, alcance) |
+| Alertas | `j`/`k`, `↓`/`↑` | Desplazarse por la lista |
+| Alertas | `Enter` / `Space` | Abrir detalle inline; `q`/`h`/`←`/`Esc` cierra |
+| Clima | `j`/`k` | Filas interactivas: ubicación / vista / celdas de la grilla |
+| Clima | `Enter` / `Space` | Según fila: toggle de ubicación, vista `[horario/semanal]` o modal de la celda |
+| Clima | `h`/`l`, `←`/`→` | Mover la ventana de proyección (±1 hora / ±1 día) |
+| Clima | `+` / `m` | Añadir / gestionar ubicaciones |
+| Footer | `h`/`l`/`k`/`j` | Fuentes y botones (`[Config]`, `[Sync All]`) |
+| Footer | `Enter` / `Space` | Modal de la fuente / Configuración / Sincronizar todo |
+| Ubicaciones | `a`/`+` añadir, `s`/`/` buscar, `p` principal, `d` borrar | Modal de gestión |
+
 ### Temas
 
 El TUI usa roles semánticos de color (tema) en vez de colores fijos. Hay 5

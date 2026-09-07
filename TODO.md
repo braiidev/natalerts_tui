@@ -9,16 +9,25 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - Formato de commit: `v0.N <tipo>: <descripción>` en español.
 
 ## Doing
-- v0.15 feat (FASE 2): severidad coloreada (verde/amarillo/rojo por umbral) +
-      grilla de clima coloreada (temp bold, viento dim, iconos accent) +
-      docs de temas y severidad en README. En curso: panels.py (fragmento
-      sev + grilla) → README → py_compile + smoke tmux → commit/tag/push.
+- (vacío)
 
 ## Next
-- v0.16 chore: limpieza final, docs de uso y atajos restantes, verificación
-      manual E2E contra el server real.
+- (opcional, dev) `[Sync All]` bloquea la TUI ~10 s: el POST lanza la
+      colección en el server y espera; mover a un thread con toast "en curso".
 
 ## Done
+- [x] v0.16 chore: limpieza (código muerto: `severity_class` en format.py,
+      `fields` en modals.py, `d` sin uso en panels.draw_alerts_detail) + docs
+      de atajos de teclado en README (tabla por sección) + E2E manual contra
+      el server real en tmux: filtros (provider→NASA EONET recarga alertas),
+      detalle inline, grilla de clima + modal de celda, footer y Sync All,
+      tema con preview + persistencia, resize sin artefactos. Sin errores en
+      el log.
+- [x] v0.15 feat (FASE 2): severidad degradada — umbrales <33/…/>=66 con los
+      roles sev_low/sev_med/sev_high en el fragmento `47/100` de la lista y en
+      la barra `#` del detalle; grilla de clima coloreada (hora/nombre bold,
+      `Hoy` en accent, icono WMO en accent, temp bold, viento/precip/min en
+      text_dim); docs en README (secciones "Temas" y "Severidad y clima").
 - [x] v0.14 feat (FASE 1): normalización visual — roles semánticos en
       `theme.py` (PAIR_*, COLORS_PACK en español, presets clasico/mono/calido/
       alto_contraste/flatline/custom, resolve_palette + init_pairs); temas

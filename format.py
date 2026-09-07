@@ -161,17 +161,6 @@ def mag_label(a: dict[str, Any]) -> str:
     return ""
 
 
-def severity_class(sev: float | None) -> int:
-    """Color curses para la barra de severidad (4 = cyan/borde)."""
-    if sev is None:
-        return 8
-    if sev >= 70:
-        return 1
-    if sev >= 45:
-        return 3
-    return 8
-
-
 def source_link(a: dict[str, Any]) -> str | None:
     d = a.get("details") or {}
     return a.get("source_url") or d.get("url") or d.get("link") or None
