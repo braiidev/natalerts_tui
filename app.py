@@ -565,7 +565,6 @@ class App:
             self.header.refresh()
             self.controls.refresh()
             self.separator.refresh()
-            self.span.refresh()
             self.footer.refresh()
             self.toast_win.refresh()
             return
@@ -583,10 +582,11 @@ class App:
     def _render_compact(self, st: State, pairs: dict[str, int], focus) -> None:
         """Modo compacto: body 1 columna — alertas arriba, clima abajo."""
         bh, bw = self.span.getmaxyx()
-        w_h = min(5, max(0, bh))          # clima compacto necesita 5 filas
+        self.span.erase()
+        w_h = min(4, max(0, bh))          # clima compacto: título + 3 filas de datos
         a_h = max(0, bh - w_h)            # el resto va a alertas (título+item)
         if a_h < 3:                       # prioridad mínima a alertas
-            a_h = max(0, bh - 5)
+            a_h = max(0, bh - w_h)
         alerts_win = self.span.derwin(max(1, a_h), bw, 0, 0)
         weather_win = self.span.derwin(w_h, bw, max(0, a_h), 0)
         if focus("alerts") and self.detail_open:

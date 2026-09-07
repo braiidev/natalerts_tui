@@ -281,14 +281,13 @@ def draw_weather_compact(win: Any, st: State, cursor: int, focus: bool, pairs: d
     attr_title = pairs["accent"] if focus else pairs["text"]
     head = " ▌Clima" if focus else " Clima"
     _put(win, 0, 0, head, attr_title | curses.A_BOLD)
-    _put(win, 1, 0, "─" * w, pairs["divider"])
 
     wd = st.weather
     if st.error_weather:
-        _put(win, 3, 1, f"Error: {st.error_weather}", pairs["error"])
+        _put(win, 2, 1, f"Error: {st.error_weather}", pairs["error"])
         return
     if not wd:
-        _put(win, 3, 1, "Cargando clima...", pairs["text"])
+        _put(win, 2, 1, "Cargando clima...", pairs["text"])
         return
 
     loc = st.active_location()
@@ -302,17 +301,18 @@ def draw_weather_compact(win: Any, st: State, cursor: int, focus: bool, pairs: d
     tz = (wd.get("timezone") or "Open-Meteo").split("/")[-1].replace("_", " ")
     icon = F.wmo_icon(wd.get("weathercode"))
 
-    # Fila 0: clima actual + ciudad, truncado a una línea.
+    # Fila 1: clima actual + ciudad, truncado a una línea.
     line0 = f" {icon} {temp}°C {desc} · {wind_txt} · {loc_name} · {tz}"
     row0_attr = pairs["selected"] if focus and cursor == 0 else pairs["text"]
-    _put(win, 2, 1, F.truncate(line0, w - 2), row0_attr | curses.A_BOLD)
+    _put(win, 1, 1, F.truncate(line0, w - 2), row0_attr | curses.A_BOLD)
 
-    # Fila 1: tabs navegables [ubicación] [ver] [grilla].
+    # Fila 2: tabs navegables [ubicación] [ver] [grilla:hora/día].
     view_txt = "horario" if st.weather_view == "hourly" else "semanal"
+    gtxt = _compact_grilla_text(st)
     tabs = [
         ("ubicación ▲/▼", 0),
         (f"ver:{view_txt}", 1),
-        ("grilla", 2),
+        (f"grilla:{gtxt}", 2),
     ]
     t_line = ""
     for label, ti in tabs:
@@ -320,17 +320,93 @@ def draw_weather_compact(win: Any, st: State, cursor: int, focus: bool, pairs: d
             t_line += f"▶{label}◀  "
         else:
             t_line += f" {label}  "
-    _put(win, 3, 1, F.truncate(t_line, w - 2), pairs["text"])
+    _put(win, 2, 1, F.truncate(t_line, w - 2), pairs["text"])
 
-    # Fila 2: resultado del tab activo (la celda/modal).
-    cell = st.weather_cell if focus and cursor == 2 else -1
-    if cursor == 2 and st.weather_view == "hourly":
-        _draw_hour_grid(win, st, cell, focus, pairs, 4, w)
-    elif cursor == 2 and st.weather_view == "daily":
-        _draw_daily_grid(win, st, cell, focus, pairs, 4, w)
+    # Fila 3: resultado — la celda real navegable (hora/día visitada).
+    # Reemplaza la grilla completa (demasiado alta para el modo compacto):
+    # h/l mueve la celda y Enter abre el modal de detalle.
+    _draw_compact_cell(win, st, cursor, focus, pairs, 3, w)
+
+
+def _cell_index(data: dict[str, Any], cell: int) -> int | None:
+    """Índice de celda válido (limitado al largo de `time`), o None sin datos."""
+    times = (data or {}).get("time") or []
+    if not times:
+        return None
+    return min(max(0, cell), len(times) - 1)
+
+
+def _compact_grilla_text(st: State) -> str:
+    """Hora/día de la celda visitada para el tab 'grilla'."""
+    wd = st.weather or {}
+    if st.weather_view == "hourly":
+        hourly = wd.get("hourly") or {}
+        cell = _cell_index(hourly, st.weather_cell)
+        if cell is None:
+            return "—"
+        return F.fmt_clock((hourly.get("time") or [])[cell])
+    daily = wd.get("daily") or {}
+    cell = _cell_index(daily, st.weather_cell)
+    if cell is None:
+        return "—"
+    if cell == 0:
+        return "Hoy"
+    return F.fmt_day((daily.get("time") or [])[cell])
+
+
+def _compact_cell_summary(st: State) -> str:
+    """Resumen de una línea de la celda visitada (hora/día + datos)."""
+    wd = st.weather or {}
+    if st.weather_view == "hourly":
+        hourly = wd.get("hourly") or {}
+        cell = _cell_index(hourly, st.weather_cell)
+        if cell is None:
+            return ""
+        times = hourly.get("time") or []
+        icon = F.wmo_icon(_arr(hourly, "weathercode", cell))
+        temp = _arr(hourly, "temperature_2m", cell)
+        wind = _arr(hourly, "wind_speed_10m", cell)
+        s = f"{F.fmt_clock(times[cell])} {icon}"
+        if temp is not None:
+            s += f" {temp}°"
+        if wind is not None:
+            s += f" · Viento {wind} km/h"
+        return s
+    daily = wd.get("daily") or {}
+    cell = _cell_index(daily, st.weather_cell)
+    if cell is None:
+        return ""
+    times = daily.get("time") or []
+    name = "Hoy" if cell == 0 else F.fmt_day(times[cell])
+    icon = F.wmo_icon(_arr(daily, "weathercode", cell))
+    s = f"{name} {icon}"
+    tmax = _arr(daily, "temperature_2m_max", cell)
+    tmin = _arr(daily, "temperature_2m_min", cell)
+    if tmax is not None:
+        s += f" {int(tmax)}°"
+    if tmin is not None:
+        s += f" / {int(tmin)}°"
+    ppt = _arr(daily, "precipitation_sum", cell)
+    if ppt:
+        s += f" · {ppt} mm"
+    return s
+
+
+def _draw_compact_cell(win: Any, st: State, cursor: int, focus: bool,
+                       pairs: dict[str, int], y: int, w: int) -> None:
+    """Fila resultado del clima compacto: resumen de la celda visitada.
+    Con foco en la fila grilla (cursor == 2) se marca como seleccionada
+    y h/l la mueve; Enter abre el modal de detalle."""
+    summary = _compact_cell_summary(st)
+    if not summary:
+        _put(win, y, 1, "Sin datos horarios/semanales", pairs["text_dim"])
+        return
+    sel = focus and cursor == 2
+    if sel:
+        line = f"▶ {summary} ◀"
+        _put(win, y, 1, F.truncate(line, w - 2), pairs["selected"] | curses.A_BOLD)
     else:
-        _put(win, 4, 1, " Enter abre la hora/día  ·  + añadir ubicación",
-             pairs["text_dim"])
+        _put(win, y, 1, F.truncate(f" {summary} ", w - 2), pairs["text"])
 
 
 def _draw_hour_grid(win: Any, st: State, cell: int, focus: bool, pairs: dict[str, int], y0: int, w: int) -> int:
@@ -496,7 +572,6 @@ def draw_footer(win: Any, st: State, cursor: int, focus: bool, pairs: dict[str, 
 
 def draw_toast(st: State, win: Any, pairs: dict[str, int]) -> None:
     h, w = win.getmaxyx()
-    win.erase()
     if not st.toast:
         return
     # expiración del toast: se limpia solo tras TTL
@@ -504,6 +579,7 @@ def draw_toast(st: State, win: Any, pairs: dict[str, int]) -> None:
         st.toast = None
         st.toast_at = None
         return
+    win.erase()
     msg = F.truncate(st.toast, w - 6)
     box_w = len(msg) + 4
     x = max(0, (w - box_w) // 2)
