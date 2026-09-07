@@ -119,6 +119,19 @@ Roles usados: `header`, `controls`, `footer`, `accent`, `text`, `text_dim`,
 - En la grilla de clima: hora/nombre en bold, icono WMO en `accent`, temperatura
   en bold y viento/precipitación en `text_dim`.
 
+### Tamaño de terminal (modo adaptativo)
+
+El TUI se adapta a tres rangos de tamaño:
+
+| Alto / Ancho | Modo |
+|---|---|
+| `h < 6` ó `w < 26` | **Minimal**: banner `TERMINAL DEMASIADO PEQUEÑA · Mínimo 26x6 · Actual WxH` (solo dimensiones, sin hints). Vuelve solo al agrandar. |
+| `6 ≤ h < 15` | **Compacto**: 1 columna; alertas (1 item) arriba y clima (3 filas) abajo; controles como un tab cíclico `← [valor] →`. |
+| `h ≥ 15` | **Normal**: layout completo 2 columnas. |
+
+En compacto la navegación es la misma (`Tab` entre secciones, `h/l` en
+controles/grilla, `j/k` filas/lista, `Enter` cicla o abre el detalle).
+
 ## Configuración (`tui/config.json`)
 
 Persistencia propia del TUI (no choca con la web ni con la DB del server):
