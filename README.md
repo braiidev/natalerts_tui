@@ -3,7 +3,7 @@
 Consumidor **TUI (curses)** de la API de Natural Alerts, separado como
 subproyecto independiente del server + web.
 
-- **Lenguaje**: Python 3.9+ (solo stdlib: `curses`, `urllib`, `json`, `sqlite3`).
+- **Lenguaje**: Python 3.9+ (solo stdlib: `curses`, `urllib`, `json`).
 - **Frontend**: curses — TUI en una sola vista dashboard (sin mapa).
 - **Persistencia propia**: `config.json` (settings locales). No toca la DB del server.
 - **Repo**: git propio e independiente (subproyecto dentro de `tui/`).
@@ -85,6 +85,14 @@ nuevo.
 | Footer | `Enter` / `Space` | Modal de la fuente / Configuración / Sincronizar todo |
 | Ubicaciones | `a`/`+` añadir, `s`/`/` buscar, `p` principal, `d` borrar | Modal de gestión |
 
+#### Flujo "agregar ubicación"
+
+Desde el modal de ubicaciones, `a`/`+` abre el modo *añadir*: se escribe el
+nombre del lugar y `<Enter>` confirma. La TUI geocodifica el nombre (`GET
+/api/geocode`) y pasa al modo *buscar* mostrando hasta 6 resultados; `1`–`6`
+eligen uno, que se guarda en el server (`POST /api/locations`) y pasa a ser la
+ubicación activa.
+
 ### Temas
 
 El TUI usa roles semánticos de color (tema) en vez de colores fijos. Hay 5
@@ -130,8 +138,10 @@ Persistencia propia del TUI (no choca con la web ni con la DB del server):
 }
 ```
 
-- `base_url` se puede cambiar por CLI (`--url`) o editando el archivo, por si
-  cambia el mini-server o el puerto de la API.
+- `base_url` se puede cambiar por CLI (`--url`), por la variable de entorno
+  `NATALERTS_TUI_URL` (ambas tienen prioridad temporal sobre el archivo, sin
+  persistirse), o editando el archivo, por si cambia el mini-server o el puerto
+  de la API.
 - `tema` se cambia desde el modal Configuración (ver arriba) o editando el archivo.
 - Cuando la API no responde, el header muestra `[SIN SERVER]` en rojo junto a
   la URL (indicador de conexión).

@@ -24,8 +24,6 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~filtro por tipo de evento~~ (hecho en v0.19)
 
 ### Media prioridad
-- [ ] awareness de collector pausado — consumir un endpoint de estado del
-      collector y mostrar aviso en el footer si está en pausa.
 - [ ] README: corregir dependencias (quitar sqlite3), documentar
       NATALERTS_TUI_URL, documentar flujo de agregar ubicación.
 
@@ -36,6 +34,10 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~tests de integración E2E~~ (omitido: E2E manual OK)
 
 ## Done
+- [x] v0.22 feat: aviso de recolector pausado — draw_footer muestra
+      "▶ recolector PAUSADO" en rojo/negrita al inicio de la tira de fuentes
+      cuando st.config["collecting"] es False o ["paused"] True (GET
+      /api/config). Verificado en tmux: normal sin banner, pausado aparece.
 - [x] v0.21 feat: indicador de conexión — draw_header muestra "[SIN SERVER]"
       en rojo/negrita junto a la URL cuando State.connected es False (falla
       refresh_config por ApiError); normal queda URL dim. Verificado en tmux.
