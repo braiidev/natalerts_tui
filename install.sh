@@ -41,7 +41,7 @@ fi
 # ── Launcher (re-ejecuta con python3 para permitir el auto-relanzado del TUI) ──
 TMP_BIN="$(mktemp)"
 cat > "$TMP_BIN" <<EOF
-#!/usr/bin/env bash
+#!/bin/sh
 # natalerts-tui — launcher del TUI (instalado por install.sh).
 exec python3 "$TARGET/main.py" "\$@"
 EOF

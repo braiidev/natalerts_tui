@@ -12,10 +12,12 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - (vacío)
 
 ## Next
-- v0.13 chore: limpieza final, docs de uso y atajos, verificación manual E2E
+- v0.14 chore: limpieza final, docs de uso y atajos, verificación manual E2E
       contra el server real.
 
 ## Done
+- [x] v0.13 fix: launcher con shebang /bin/sh — el comando solo funcionaba con
+      bash presente (Alpine sin bash rompía el launcher); el cuerpo es POSIX.
 - [x] v0.12 fix: install.sh no aborta si sudo pide password — instala el
       launcher en ~/.local/bin con aviso de PATH (antes set -e cortaba el
       script y dejaba el código instalado sin comando).
