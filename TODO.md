@@ -9,30 +9,37 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - Formato de commit: `v0.N <tipo>: <descripción>` en español.
 
 ## Doing
-
-## Next
-
-- [ ] v0.1 feat: esqueleto del TUI — layout Header/Controls/Alertas/Clima/Footer,
-      dispatch de teclas por contexto (modo normal / modal / prompt), navegación con
-      `<tab>` entre secciones y `<hjkl>`/flechas dentro de cada una, resalte de la
-      sección activa.
-- [ ] v0.2 feat: cliente API (urllib) + carga y guardado de `config.json`
-      (URL base configurable vía `--url` y archivo, filtros, alcance, radio,
-      ubicación activa, vista de clima).
-- [ ] v0.3 feat: Controls — filtros toggle circulares [Todos>][Dias>][Urgencia>]
-      [Asc-Desc>][Radio(±5)] y alcance [Zona/Pais>], disparan re-carga de `/api/alerts`.
-- [ ] v0.4 feat: Card Alertas — lista con truncado y scroll navegable, contador y
-      días; `<enter>` en item abre modal de detalle ampliado; vuelta con q/h/arrow_left.
-- [ ] v0.5 feat: Card Clima — ubicación actual (toggle circular entre ubicaciones +
-      botón (+)), modal de administrar ubicaciones; toggle [horario/semanal] con
-      proyecciones +1/+2/+3 navegables; `<enter>` en celda abre modal de detalle.
-- [ ] v0.6 feat: Footer — 4 mini-cards de fuentes [Evento <estado>] con última carga
-      hh:mm y countdown; modal para configurar fuente (intervalo fijo, sincronizar
-      ahora, recargar); botón [Sync All].
-- [ ] v0.7 feat: recarga automática — refresh de alertas (60s), clima (300s) y
-      config (300s) con countdown visible de próxima recarga.
 - [ ] v0.8 chore: limpieza final, docs de uso y atajos, verificación manual E2E
       contra el server real.
+
+## Next
+- Fixes pendientes detectados en la verificación manual (v0.8):
+  - Clima: `<enter>` en celda de la grilla no abre el detalle de celda
+    (`_open_weather_cell` inalcanzable: el cursor en clima queda clampeado a 0..2 y
+    Enter colisiona con los toggles de ubicación/vista).
+  - Artefactos de redibujo tras abrir/cerrar algunos modales (chars residuales en
+    filas compartidas) — reproducible al abrir/cerrar `source_config` tras resizes.
+  - Toast persistente: no expira y puede tapar el estado del footer.
+
+## Done
+- [x] v0.1 feat: esqueleto completo del TUI de una sola sesión — layout
+      Header/Controls/Alertas/Clima/Footer con `<tab>` entre secciones, dispatch de
+      teclas por contexto, resalte de sección activa y layout con resize.
+- [x] v0.2 feat: cliente API (urllib, `api.py`) + `config.json` (`config.py`) con
+      URL base por `--url`/archivo/modal `[Config]` (tecla `u`/`U`), filtros,
+      alcance, radio, ubicación activa y vista de clima persitidos.
+- [x] v0.3 feat: Controls — toggles circulares [USGS▾][7 d▾][Urgencia▾][Asc ↑]
+      [Radio ±5][Mundo▾] que re-cargan `/api/alerts`.
+- [x] v0.4 feat: Card Alertas — lista truncada con scroll, contador/días; `<enter>`
+      abre modal de detalle ampliado y `q/h/←` vuelve.
+- [x] v0.5 feat: Card Clima — ubicación actual, toggle de ubicaciones (▲/▼ y `+`),
+      modal de administrar ubicaciones, vista [horario/semanal], grilla de
+      proyección +1/+2/+3 navegable con ◀▶/hl y paleta de colors por código WMO.
+- [x] v0.6 feat: Footer — 4 mini-cards de fuentes con última carga hh:mm y estado;
+      modal de configuración de fuente (intervalo fijo, sincronizar ahora,
+      recargar, cerrar); botón [Config] y [Sync All] persistidos.
+- [x] v0.7 feat: recarga automática — alertas 60s, clima 300s, config 300s con
+      countdown de próxima recarga en el footer.
 
 ## Done
 - [x] v0.0 docs: subproyecto TUI creado con git init propio en `tui/` (ignorado por

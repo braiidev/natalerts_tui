@@ -23,6 +23,8 @@ class App:
         self.st.client = Client(state.base_url)
         self.section = "alerts"
         self.cursor = 0  # cursor genérico por sección (lista/item)
+        self.detail_open = False
+        self.detail_alert: dict[str, Any] | None = None
         self.busy = False
         self._init_colors()
         self._init_windows()
@@ -105,6 +107,13 @@ class App:
             st.alerts = d.get("alerts", [])
             st.alert_count = d.get("count", len(st.alerts))
             st.error_alerts = None
+            if self.detail_open:
+                # revalidar la alerta en detalle (puede haber desaparecido)
+                if self.detail_alert and not any(
+                    a.get("id") == self.detail_alert["id"] for a in st.alerts
+                ):
+                    self.detail_open = False
+                    self.detail_alert = None
         except ApiError as e:
             st.error_alerts = str(e)
 
@@ -134,6 +143,11 @@ class App:
             self.section = SECTIONS[(idx + 1) % len(SECTIONS)]
             self.cursor = 0
             return False
+        # En la sección de alertas con detalle abierto, q/h/←/esc cierran el
+        # detalle (no salen del TUI).
+        if self.section == "alerts" and self.detail_open:
+            return self._key_alerts(key)
+
         # Raíz: q/esc salen, el resto se despacha por sección.
         if key in (ord("q"), 27):
             return True
@@ -190,12 +204,21 @@ class App:
     # ---------- alertas ----------
     def _key_alerts(self, key: int) -> bool:
         st = self.st
+        if self.detail_open:
+            if key in (ord("q"), ord("h"), curses.KEY_LEFT, 27):
+                self.detail_open = False
+                self.detail_alert = None
+            return False
         if key in (curses.KEY_DOWN, ord("j")):
             if self.cursor < len(st.alerts) - 1:
                 self.cursor += 1
         elif key in (curses.KEY_UP, ord("k")):
             if self.cursor > 0:
                 self.cursor -= 1
+        elif key in (curses.KEY_ENTER, 10, 13, ord(" ")):
+            if st.alerts:
+                self.detail_alert = st.alerts[self.cursor]
+                self.detail_open = True
         return False
 
     def _persist(self) -> None:
@@ -233,7 +256,10 @@ class App:
         focus = lambda s: self.section == s
         P.draw_header(self.header, st)
         P.draw_controls(self.controls, st)
-        P.draw_alerts_list(self.left, st, self.cursor, focus("alerts"))
+        if focus("alerts") and self.detail_open:
+            P.draw_alerts_detail(self.left, st, self.detail_alert)
+        else:
+            P.draw_alerts_list(self.left, st, self.cursor, focus("alerts"))
         self.header.refresh()
         self.controls.refresh()
         self.body.refresh()

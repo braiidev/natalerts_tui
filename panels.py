@@ -142,3 +142,39 @@ def _alert_line(a: dict[str, Any]) -> str:
     src = F.SOURCE_LABELS.get(a.get("source"), a.get("source") or "")
     rel = F.time_ago(a.get("time"))
     return f"{typ:<11} {mag_txt:<6} {place} · {rel} · {sev}/100{dist} · {src}"
+
+
+def draw_alerts_detail(win: Any, st: State, a: dict[str, Any] | None) -> None:
+    h, w = win.getmaxyx()
+    _fill(win, curses.color_pair(C_CARD))
+    if a is None:
+        _put(win, 0, 0, " Alertas", curses.color_pair(C_ACTIVE) | curses.A_BOLD)
+        return
+    _put(win, 0, 0, " ▌Detalle de alerta", curses.color_pair(C_ACTIVE) | curses.A_BOLD)
+    y = 1
+    d = a.get("details") or {}
+    typ = F.TYPE_LABELS.get(a.get("type"), a.get("type") or "?")
+    _put(win, y, 2, f"Tipo:     {typ}", curses.color_pair(C_NORMAL)); y += 1
+    _put(win, y, 2, f"Fuente:   {F.SOURCE_LABELS.get(a.get('source'), a.get('source') or '')}"); y += 1
+    mag = F.mag_label(a) or "—"
+    _put(win, y, 2, f"Magnitud: {mag}", curses.color_pair(C_NORMAL)); y += 1
+    _put(win, y, 2, f"Lugar:    {a.get('place') or a.get('title') or '—'}"); y += 1
+    _put(win, y, 2, f"Hora:     {F.fmt_datetime(a.get('time'))} ({F.time_ago(a.get('time'))})"); y += 1
+    sev = int(max(0, min(100, a.get("severity") or 0)))
+    _put(win, y, 2, f"Severidad:{sev}/100  {_severity_bar(sev, w - 16)}", curses.color_pair(C_NORMAL)); y += 2
+    dist = a.get("distance_km")
+    _put(win, y, 2, f"Distancia:{f'{int(dist)} km' if dist is not None else '—'}"); y += 1
+    link = F.source_link(a)
+    if link:
+        _put(win, y, 2, f"Link:     {link}", curses.color_pair(C_NORMAL)); y += 1
+    title = a.get("title")
+    if title and title != (a.get("place") or ""):
+        _put(win, y, 2, f"Título:   {title}", curses.color_pair(C_NORMAL)); y += 1
+    y += 1
+    _put(win, y, 2, " q/h/← volver", curses.color_pair(C_FOOTER))
+
+
+def _severity_bar(sev: int, width: int) -> str:
+    width = max(1, width)
+    filled = int((sev / 100) * width)
+    return "#" * filled + "." * (width - filled)
