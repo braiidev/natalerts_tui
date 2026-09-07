@@ -48,26 +48,19 @@ EOF
 chmod +x "$TMP_BIN"
 
 BIN_DIR="$(dirname "$BIN")"
-if [ -d "$BIN_DIR" ]; then
-    if [ -w "$BIN_DIR" ]; then
-        install -m 0755 "$TMP_BIN" "$BIN"
-    elif command -v sudo >/dev/null 2>&1; then
-        sudo install -m 0755 "$TMP_BIN" "$BIN"
-    else
-        FALLBACK="$HOME/.local/bin/natalerts-tui"
-        mkdir -p "$(dirname "$FALLBACK")"
-        install -m 0755 "$TMP_BIN" "$FALLBACK"
-        echo "  ⚠ Sin permisos para $BIN (sin sudo). El comando quedó en: $FALLBACK"
-        echo "    Agregá ~/.local/bin a tu PATH:"
-        echo '      echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> ~/.bashrc'
-        BIN="$FALLBACK"
-    fi
+FALLBACK="$HOME/.local/bin/natalerts-tui"
+if [ -d "$BIN_DIR" ] && [ -w "$BIN_DIR" ]; then
+    install -m 0755 "$TMP_BIN" "$BIN"
+elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    # sudo sin password disponible (no-interactivo): instalar directo
+    sudo -n install -m 0755 "$TMP_BIN" "$BIN"
 else
-    # binario inexistente: crear el directorio (fallback a ~/.local/bin)
-    FALLBACK="$HOME/.local/bin/natalerts-tui"
+    # sin permisos y sin sudo no-interactivo: fallback a ~/.local/bin
     mkdir -p "$(dirname "$FALLBACK")"
     install -m 0755 "$TMP_BIN" "$FALLBACK"
-    echo "  ⚠ No existe $BIN_DIR. El comando quedó en: $FALLBACK"
+    echo "  ⚠ Sin permisos para $BIN (sudo pide password / no disponible). Comando en: $FALLBACK"
+    echo "    Agregá ~/.local/bin a tu PATH:"
+    echo '      echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> ~/.bashrc'
     BIN="$FALLBACK"
 fi
 rm -f "$TMP_BIN"

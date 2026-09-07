@@ -12,10 +12,13 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - (vacío)
 
 ## Next
-- v0.12 chore: limpieza final, docs de uso y atajos, verificación manual E2E
+- v0.13 chore: limpieza final, docs de uso y atajos, verificación manual E2E
       contra el server real.
 
 ## Done
+- [x] v0.12 fix: install.sh no aborta si sudo pide password — instala el
+      launcher en ~/.local/bin con aviso de PATH (antes set -e cortaba el
+      script y dejaba el código instalado sin comando).
 - [x] v0.11 feat: instalador + self-update — `install.sh` (curl|sh, repo
       `braiidev/natalerts_tui` en main) que instala en `~/.local/natalerts/tui`
       con launcher `/usr/local/bin/natalerts-tui`; CLI `--update`,
