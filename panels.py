@@ -53,8 +53,12 @@ def draw_header(win: Any, st: State, pairs: dict[str, int]) -> None:
     _put(win, 0, 0, title, pairs["header"] | curses.A_BOLD)
     mid = f" {loc_name} " if loc_name else ""
     _put(win, 0, len(title), mid, pairs["header"] | curses.A_BOLD)
-    right = base
-    _put(win, 0, max(0, w - len(right) - 1), right, pairs["header"] | curses.A_DIM)
+    right = f" {base} "
+    if st.connected is False:
+        right = " [SIN SERVER] " + right
+        _put(win, 0, max(0, w - len(right) - 1), right, pairs["header"] | pairs["error"] | curses.A_BOLD)
+    else:
+        _put(win, 0, max(0, w - len(right) - 1), right, pairs["header"] | curses.A_DIM)
 
 
 def draw_controls(win: Any, st: State, pairs: dict[str, int], cursor: int, focus: bool) -> None:

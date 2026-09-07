@@ -133,6 +133,8 @@ Persistencia propia del TUI (no choca con la web ni con la DB del server):
 - `base_url` se puede cambiar por CLI (`--url`) o editando el archivo, por si
   cambia el mini-server o el puerto de la API.
 - `tema` se cambia desde el modal Configuración (ver arriba) o editando el archivo.
+- Cuando la API no responde, el header muestra `[SIN SERVER]` en rojo junto a
+  la URL (indicador de conexión).
 
 ## Consumo de API
 

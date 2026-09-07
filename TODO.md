@@ -24,11 +24,6 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~filtro por tipo de evento~~ (hecho en v0.19)
 
 ### Media prioridad
-- [ ] limpieza código muerto — eliminar: TYPE_COLOR, wmo_desc(),
-      Client.health(), Client.alert(), SOURCE_INTERVALS (duplicado con
-      modals.py), last_request_at (global), toast_color, _arr() duplicado
-      (mantener solo en panels.py), SCOPE_OPTIONS/PROVIDER_OPTIONS/SORT_OPTIONS/
-      DAYS_OPTIONS en config.py (no usados), import locale en fmt_day.
 - [ ] indicador de conexión — renderizar State.connected en el header o footer
       como banner sutil (ej. "[sin server]" o icono) cuando connected=False.
 - [ ] awareness de collector pausado — consumir un endpoint de estado del
@@ -43,6 +38,13 @@ Subproyecto consumidor (curses) de la API de Natural Alerts. Repo git propio en 
 - [ ] ~~tests de integración E2E~~ (omitido: E2E manual OK)
 
 ## Done
+- [x] v0.20 refactor: limpieza de código muerto — se eliminan TYPE_COLOR y
+      wmo_desc() (format.py), Client.health() y Client.alert() (api.py),
+      el global last_request_at y su import time (api.py, se seteaba sin
+      lectores), SOURCE_INTERVALS (app.py, duplicado con modals.py), _arr()
+      local (app.py usa P._arr de panels.py único), toast_color (state.py),
+      SCOPE/PROVIDER/SORT/DAYS_OPTIONS (config.py) y el import locale inline
+      (format.py). Verificado: compila y render E2E en tmux OK.
 - [x] v0.19 feat: filtro por tipo de evento — nuevo séptimo toggle circular en
       `#controls` ([Todo▾] → [Sismos▾] → [Marejada▾] → [Tornados▾] → …) que
       consulta `?type=<tipo>` en `/api/alerts`, alineado con la web. Tipos
