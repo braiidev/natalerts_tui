@@ -34,7 +34,7 @@ class App:
         self.st = state
         self.st.client = Client(state.base_url)
         self.section = "alerts"
-        self.cursor = 0  # cursor genérico por sección (lista/item)
+        self.cursor = {"controls": 0, "alerts": 0, "weather": 0, "footer": 0}
         self.detail_open = False
         self.detail_alert: dict[str, Any] | None = None
         self.mode = "normal"  # "normal" | "compact" | "minimal"
@@ -176,7 +176,7 @@ class App:
         if key == 9:  # tab
             idx = SECTIONS.index(self.section)
             self.section = SECTIONS[(idx + 1) % len(SECTIONS)]
-            self.cursor = 0
+            self.cursor[self.section] = 0
             if self.section == "alerts" and self.detail_open:
                 self.section = "footer"
             return False
@@ -205,12 +205,14 @@ class App:
     # ---------- controles ----------
     def _key_controls(self, key: int) -> bool:
         st = self.st
+        cur = self.cursor["controls"]
         if key in (curses.KEY_LEFT, ord("h")) or key in (curses.KEY_RIGHT, ord("l")):
             # mover el "cursor de filtro" entre índices de filtros
-            self.cursor = (self.cursor + (1 if key in (curses.KEY_RIGHT, ord("l")) else -1)) % 7
+            cur = (cur + (1 if key in (curses.KEY_RIGHT, ord("l")) else -1)) % 7
+            self.cursor["controls"] = cur
             return False
         if key in (curses.KEY_ENTER, 10, 13, ord(" ")):
-            self._activate_filter(self.cursor)
+            self._activate_filter(cur)
             return False
         return False
 
@@ -253,20 +255,21 @@ class App:
     # ---------- alertas ----------
     def _key_alerts(self, key: int) -> bool:
         st = self.st
+        cur = self.cursor["alerts"]
         if self.detail_open:
             if key in (ord("q"), ord("h"), curses.KEY_LEFT, 27):
                 self.detail_open = False
                 self.detail_alert = None
             return False
         if key in (curses.KEY_DOWN, ord("j")):
-            if self.cursor < len(st.alerts) - 1:
-                self.cursor += 1
+            if cur < len(st.alerts) - 1:
+                self.cursor["alerts"] = cur + 1
         elif key in (curses.KEY_UP, ord("k")):
-            if self.cursor > 0:
-                self.cursor -= 1
+            if cur > 0:
+                self.cursor["alerts"] = cur - 1
         elif key in (curses.KEY_ENTER, 10, 13, ord(" ")):
             if st.alerts:
-                self.detail_alert = st.alerts[self.cursor]
+                self.detail_alert = st.alerts[cur]
                 self.detail_open = True
         return False
 
@@ -286,20 +289,21 @@ class App:
 
     def _key_weather(self, key: int) -> bool:
         st = self.st
+        cur = self.cursor["weather"]
         if key in (curses.KEY_LEFT, ord("h")):
             n = self._weather_cell_count()
-            if self.cursor == 2 and n:
+            if cur == 2 and n:
                 st.weather_cell = max(0, st.weather_cell - 1)
         elif key in (curses.KEY_RIGHT, ord("l")):
             n = self._weather_cell_count()
-            if self.cursor == 2 and n:
+            if cur == 2 and n:
                 st.weather_cell = min(n - 1, st.weather_cell + 1)
         elif key in (curses.KEY_DOWN, ord("j")):
-            self.cursor = min(self.WEATHER_ROWS - 1, self.cursor + 1)
+            self.cursor["weather"] = min(self.WEATHER_ROWS - 1, cur + 1)
         elif key in (curses.KEY_UP, ord("k")):
-            self.cursor = max(0, self.cursor - 1)
+            self.cursor["weather"] = max(0, cur - 1)
         elif key in (curses.KEY_ENTER, 10, 13, ord(" ")):
-            if self.cursor == 0:
+            if cur == 0:
                 # toggle entre ubicaciones
                 if st.locations:
                     locs = st.locations
@@ -314,7 +318,7 @@ class App:
                     st.cfg["active_location_id"] = nxt.get("id")
                     self._persist()
                     self.refresh_weather()
-            elif self.cursor == 1:
+            elif cur == 1:
                 # toggle horario/semanal
                 st.cfg["weather_view"] = "daily" if st.weather_view == "hourly" else "hourly"
                 st.weather_view = st.cfg["weather_view"]
@@ -400,25 +404,26 @@ class App:
     # ---------- footer ----------
     def _key_footer(self, key: int) -> bool:
         st = self.st
+        cur = self.cursor["footer"]
         sources = list((st.config.get("sources") or {}).keys())
         # cursor en footer: 0..len(sources)-1, luego botones
         total_rows = len(sources) + 2  # +2 botones (config, sync all)
         nh = list(range(len(sources))) + [len(sources), len(sources) + 1]
         if key in (curses.KEY_LEFT, ord("h")):
-            self.cursor = max(0, self.cursor - 1)
+            self.cursor["footer"] = max(0, cur - 1)
         elif key in (curses.KEY_RIGHT, ord("l")):
-            self.cursor = min(total_rows - 1, self.cursor + 1)
+            self.cursor["footer"] = min(total_rows - 1, cur + 1)
         elif key in (curses.KEY_UP, ord("k")):
-            self.cursor = max(0, self.cursor - 1)
+            self.cursor["footer"] = max(0, cur - 1)
         elif key in (curses.KEY_DOWN, ord("j")):
-            self.cursor = min(total_rows - 1, self.cursor + 1)
+            self.cursor["footer"] = min(total_rows - 1, cur + 1)
         elif key in (curses.KEY_ENTER, 10, 13, ord(" ")):
-            if self.cursor < len(sources):
-                modals.source_config(self.scr, st, self._client(), sources[self.cursor])
+            if cur < len(sources):
+                modals.source_config(self.scr, st, self._client(), sources[cur])
                 self.refresh_config()
-            elif self.cursor == len(sources):
+            elif cur == len(sources):
                 self._open_config()
-            elif self.cursor == len(sources) + 1:
+            elif cur == len(sources) + 1:
                 st.set_toast("Espere por favor ~10 s — sincronizando fuentes…")
                 self.render()
                 try:
@@ -544,14 +549,14 @@ class App:
         focus = lambda s: self.section == s
         compact = self.mode == "compact"
         P.draw_header(self.header, st, pairs)
-        P.draw_controls(self.controls, st, pairs, self.cursor, focus("controls"), compact=compact)
+        P.draw_controls(self.controls, st, pairs, self.cursor["controls"], focus("controls"), compact=compact)
         P.draw_separator(self.separator, pairs)
         if focus("alerts") and self.detail_open:
             P.draw_alerts_detail(self.left, st, self.detail_alert, pairs)
         else:
-            P.draw_alerts_list(self.left, st, self.cursor, focus("alerts"), pairs)
-        P.draw_weather(self.right, st, self.cursor, focus("weather"), pairs)
-        P.draw_footer(self.footer, st, self.cursor, focus("footer"), pairs)
+            P.draw_alerts_list(self.left, st, self.cursor["alerts"], focus("alerts"), pairs)
+        P.draw_weather(self.right, st, self.cursor["weather"], focus("weather"), pairs)
+        P.draw_footer(self.footer, st, self.cursor["footer"], focus("footer"), pairs)
         # countdown de próxima recarga en el footer
         self._draw_countdown()
         P.draw_toast(st, self.toast_win, pairs)
@@ -587,8 +592,8 @@ class App:
         if focus("alerts") and self.detail_open:
             P.draw_alerts_detail(alerts_win, st, self.detail_alert, pairs)
         else:
-            P.draw_alerts_list(alerts_win, st, self.cursor, focus("alerts"), pairs)
-        P.draw_weather_compact(weather_win, st, self.cursor, focus("weather"), pairs)
+            P.draw_alerts_list(alerts_win, st, self.cursor["alerts"], focus("alerts"), pairs)
+        P.draw_weather_compact(weather_win, st, self.cursor["weather"], focus("weather"), pairs)
         alerts_win.refresh()
         weather_win.refresh()
 
