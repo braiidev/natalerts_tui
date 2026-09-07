@@ -1,21 +1,17 @@
 """Cliente HTTP de la API de Natural Alerts (solo stdlib, urllib).
 
 Cada función devuelve el JSON parseado o lanza ApiError con mensaje legible.
-Registra `last_request_at` (epoch) para el countdown del footer.
 """
 
 from __future__ import annotations
 
 import json
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
 
 _TIMEOUT = 10
-
-last_request_at: float | None = None
 
 
 class ApiError(Exception):
@@ -24,7 +20,6 @@ class ApiError(Exception):
 
 def _get(base: str, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     """GET a `base+path` con query params opcionales."""
-    global last_request_at
     url = base + path
     if params:
         url += "?" + urllib.parse.urlencode(
@@ -33,10 +28,8 @@ def _get(base: str, path: str, params: dict[str, Any] | None = None) -> dict[str
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
-            last_request_at = time.time()
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        last_request_at = time.time()
         body = exc.read().decode("utf-8", errors="replace")
         try:
             detail = json.loads(body).get("error", body)
@@ -52,7 +45,6 @@ def _get(base: str, path: str, params: dict[str, Any] | None = None) -> dict[str
 def _send(
     base: str, method: str, path: str, payload: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    global last_request_at
     data = None
     headers = {"Accept": "application/json"}
     if payload is not None:
@@ -63,10 +55,8 @@ def _send(
     )
     try:
         with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
-            last_request_at = time.time()
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        last_request_at = time.time()
         body = exc.read().decode("utf-8", errors="replace")
         try:
             detail = json.loads(body).get("error", body)
@@ -86,13 +76,6 @@ class Client:
         self.base_url = base_url.rstrip("/")
 
     # ---- Refresco ----
-    def health(self) -> bool:
-        try:
-            self._get("/health")
-            return True
-        except ApiError:
-            return False
-
     def alerts(
         self,
         *,
@@ -125,9 +108,6 @@ class Client:
             params["lon"] = lon
             params["radius"] = radius
         return self._get("/api/alerts", params)
-
-    def alert(self, alert_id: str) -> dict[str, Any]:
-        return self._get(f"/api/alerts/{urllib.parse.quote(alert_id)}")
 
     # ---- Clima ----
     def weather(self, lat: float | None = None, lon: float | None = None) -> dict[str, Any]:

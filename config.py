@@ -27,13 +27,6 @@ DEFAULTS: dict[str, Any] = {
     "tema": "clasico",
 }
 
-# Opciones válidas para edición desde el modal de config
-SCOPE_OPTIONS = ["world", "country", "zone"]
-PROVIDER_OPTIONS = ["all", "usgs", "eonet", "gdacs"]  # open_meteo no produce alertas
-SORT_OPTIONS = ["severity", "time", "distance"]
-DAYS_OPTIONS = [1, 7, 30, 90, 0]  # 0 = todos
-
-
 def load_config(path: Path | str | None = None) -> dict[str, Any]:
     """Carga config.json mergeando con defaults (campos faltantes/rotos)."""
     cfg_path = Path(path) if path else CONFIG_PATH

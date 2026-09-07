@@ -41,7 +41,6 @@ class State:
         # Feedback
         self.toast: str | None = None
         self.toast_at: float | None = None
-        self.toast_color = 3  # amarillo
         # Relanzar tras actualización exitosa (lo consume main.py con os.execv)
         self.relaunch = False
         # Nombre en espera del flujo "añadir ubicación" (add -> search)

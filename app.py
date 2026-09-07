@@ -22,14 +22,6 @@ RELOAD_ALERTS = 60
 RELOAD_WEATHER = 300
 RELOAD_CONFIG = 300
 
-# Intervalos de fuente válidos (para el modal de fuente)
-SOURCE_INTERVALS = {
-    "usgs": [1, 2, 3, 4, 5, 10, 15, 30, 60],
-    "eonet": [1, 2, 3, 4, 5, 10, 15, 30, 60],
-    "gdacs": [5, 10, 15, 30, 60],
-    "open_meteo": [10, 15, 30, 60],
-}
-
 
 class App:
     def __init__(self, scr: Any, state: State) -> None:
@@ -343,16 +335,16 @@ class App:
             i = max(0, min(cell_idx, len(times) - 1))
             cell = {
                 "t": times[i] if i < len(times) else None,
-                "temp": _arr(hourly, "temperature_2m", i),
-                "code": _arr(hourly, "weathercode", i),
-                "wind": _arr(hourly, "wind_speed_10m", i),
-                "gust": _arr(hourly, "windgusts_10m", i),
-                "precip": _arr(hourly, "precipitation", i),
-                "pop": _arr(hourly, "precipitation_probability", i),
-                "hum": _arr(hourly, "relativehumidity_2m", i),
-                "feels": _arr(hourly, "apparent_temperature", i),
-                "cloud": _arr(hourly, "cloudcover", i),
-                "press": _arr(hourly, "pressure_msl", i),
+                "temp": P._arr(hourly, "temperature_2m", i),
+                "code": P._arr(hourly, "weathercode", i),
+                "wind": P._arr(hourly, "wind_speed_10m", i),
+                "gust": P._arr(hourly, "windgusts_10m", i),
+                "precip": P._arr(hourly, "precipitation", i),
+                "pop": P._arr(hourly, "precipitation_probability", i),
+                "hum": P._arr(hourly, "relativehumidity_2m", i),
+                "feels": P._arr(hourly, "apparent_temperature", i),
+                "cloud": P._arr(hourly, "cloudcover", i),
+                "press": P._arr(hourly, "pressure_msl", i),
             }
             lines = [
                 ("Hora", F.fmt_clock(cell["t"])),
@@ -375,14 +367,14 @@ class App:
             i = max(0, min(cell_idx, len(times) - 1))
             cell = {
                 "t": times[i] if i < len(times) else None,
-                "code": _arr(daily, "weathercode", i),
-                "tmax": _arr(daily, "temperature_2m_max", i),
-                "tmin": _arr(daily, "temperature_2m_min", i),
-                "precip": _arr(daily, "precipitation_sum", i),
-                "sunrise": _arr(daily, "sunrise", i),
-                "sunset": _arr(daily, "sunset", i),
-                "uv": _arr(daily, "uv_index_max", i),
-                "windMax": _arr(daily, "wind_speed_10m_max", i),
+                "code": P._arr(daily, "weathercode", i),
+                "tmax": P._arr(daily, "temperature_2m_max", i),
+                "tmin": P._arr(daily, "temperature_2m_min", i),
+                "precip": P._arr(daily, "precipitation_sum", i),
+                "sunrise": P._arr(daily, "sunrise", i),
+                "sunset": P._arr(daily, "sunset", i),
+                "uv": P._arr(daily, "uv_index_max", i),
+                "windMax": P._arr(daily, "wind_speed_10m_max", i),
             }
             name = "Hoy" if i == 0 else F.fmt_day(cell["t"])
             lines = [
@@ -576,10 +568,3 @@ class App:
             self.footer.addstr(min(1, h - 1), 0, F.truncate(txt, w - 22), self._pairs["footer"])
         except curses.error:
             pass
-
-
-def _arr(data: dict[str, Any], key: str, i: int) -> Any:
-    arr = data.get(key)
-    if isinstance(arr, list) and i < len(arr):
-        return arr[i]
-    return None

@@ -15,14 +15,6 @@ TYPE_LABELS: dict[str, str] = {
     "other": "Otro",
 }
 
-# Color ANSI (16 colores básicos de curses) por tipo
-TYPE_COLOR: dict[str, int] = {
-    "earthquake": 1, "tsunami": 1, "tornado": 5, "cyclone": 4, "storm": 3,
-    "flood": 4, "fire": 3, "volcano": 8, "drought": 3, "landslide": 8,
-    "dust_haze": 6, "sea_lake_ice": 6, "snow": 7, "temperature": 3,
-    "manmade": 7, "other": 7,
-}
-
 SOURCE_LABELS: dict[str, str] = {
     "usgs": "USGS", "eonet": "NASA EONET", "gdacs": "GDACS",
     "open_meteo": "Open-Meteo",
@@ -74,20 +66,6 @@ def wmo_icon(code: int | None) -> str:
     if code >= 51:
         return "☂"
     return "☁"
-
-
-def wmo_desc(code: int | None) -> str:
-    descs = {
-        0: "Despejado", 1: "Mayormente despejado", 2: "Parcialmente nublado",
-        3: "Nublado", 45: "Niebla", 48: "Niebla con escarcha",
-        51: "Llovizna ligera", 53: "Llovizna moderada", 55: "Llovizna densa",
-        61: "Lluvia ligera", 63: "Lluvia moderada", 65: "Lluvia fuerte",
-        71: "Nieve ligera", 73: "Nieve moderada", 75: "Nieve fuerte",
-        80: "Chubascos ligeros", 81: "Chubascos moderados", 82: "Chubascos violentos",
-        95: "Tormenta eléctrica", 96: "Tormenta con granizo ligero",
-        99: "Tormenta con granizo fuerte",
-    }
-    return descs.get(code, "Desconocido")
 
 
 def _parse_iso(iso: str | None) -> datetime | None:
@@ -145,11 +123,7 @@ def fmt_day(iso: str | None) -> str:
         d = _parse_iso(iso)
     if d is None:
         return ""
-    import locale
-    try:
-        return d.strftime("%a %d")
-    finally:
-        pass
+    return d.strftime("%a %d")
 
 
 def fmt_datetime(iso: str | None) -> str:
